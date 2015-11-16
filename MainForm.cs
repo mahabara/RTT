@@ -143,6 +143,38 @@ namespace RTT
             {"APP_REF5", LTU.APP_REF5},
             {"APP_REF6", LTU.APP_REF6}
         };
+        private static readonly Dictionary<string, FlowDataType> flowDataTypeDic = new Dictionary<string, FlowDataType>
+        {
+            {"NONE", FlowDataType.NONE},
+            {"IQ", FlowDataType.IQ},
+            {"AXC", FlowDataType.AXC},
+            {"ECP", FlowDataType.ECP},
+            {"AXC_ECP", FlowDataType.AXC_ECP},
+            {"IQ_AXC_ECP", FlowDataType.IQ_AXC_ECP}           
+        };
+        private static readonly Dictionary<string, FlowStartCondition> flowStartConditionDic = new Dictionary<string, FlowStartCondition>
+        {
+            {"NONE", FlowStartCondition.NONE},
+            {"TRIG_IN", FlowStartCondition.TRIG_IN},
+            {"CPRI_TIME", FlowStartCondition.CPRI_TIME},
+            {"FIRST_NON_IDLE", FlowStartCondition.FIRST_NON_IDLE},
+            {"FSINFO", FlowStartCondition.FSINFO},
+            {"FRAME_PRE_START", FlowStartCondition.FRAME_PRE_START},
+            {"RADIO_FRAME", FlowStartCondition.RADIO_FRAME}
+        };
+        private static readonly Dictionary<string, FlowStopCondition> flowStopConditionDic = new Dictionary<string, FlowStopCondition>
+        {
+            {"NEVER", FlowStopCondition.NEVER},
+            {"FLOW_STOP_COND_CPRI_TIME", FlowStopCondition.FLOW_STOP_COND_CPRI_TIME},
+            {"FLOW_STOP_COND_TRIG_IN", FlowStopCondition.FLOW_STOP_COND_TRIG_IN},
+            {"CPRI_TIME_LENGTH", FlowStopCondition.CPRI_TIME_LENGTH}
+        };
+
+        private static readonly Dictionary<string, FlowDataMode> flowDataModeDic = new Dictionary<string, FlowDataMode>
+        {
+            {"Carrier", FlowDataMode.Carrier},
+            {"RAW", FlowDataMode.RAW}
+        };
         //visa
         bool VisaSwitch = true;//true ==visa32
         
@@ -1455,7 +1487,30 @@ namespace RTT
                                 WriteTraceText("Please check parameters first!");
                             }
                         }
-                        
+                        else if (sendcmd.Contains("GetStartStopCondition"))
+                        {
+                            string[] cmds = sendcmd.Split('#');
+                            if (cmds.Length >= 4)
+                            {
+                                result = this.RumasterGetStartStopCondition(cmds[1], cmds[2], cmds[3]);
+                            }
+                        }
+						else if (sendcmd.Contains("SetStartStopCondition"))
+                        {
+                            string[] cmds = sendcmd.Split('#');
+                            if (cmds.Length >= 8)
+                            {
+                                this.RumasterSetStartStopCondition(cmds[1], cmds[2], cmds[3], cmds[4], cmds[5], cmds[6], cmds[7]);
+                            }
+                        }
+						else if (sendcmd.Contains("SetFlowDataMode"))
+                        {
+                            string[] cmds = sendcmd.Split('#');
+                            if (cmds.Length >= 5)
+                            {
+                                this.RumasterSetFlowDataMode(cmds[1], cmds[2], cmds[3], cmds[4]);
+                            }
+                        }
                         else if (sendcmd.Contains("DeleteAllCarriers"))
                         {
                             string[] cmds = sendcmd.Split(SPACER_FLAG_FIR);
@@ -1957,11 +2012,138 @@ namespace RTT
             catch(Exception e)
             {
                 WriteTraceText("Rumaster set CPC file failed!--" + e.Message);
+            }
+        }
+        private void RumasterSetFlowDataMode(string cpriport, string flowdirection, string flowdatatype,string flowdatamode)
+        {
+            
+            try
+            {
+                icdf.SetFlowDataMode(cpriport, flowDirectionDic[flowdirection], flowDataTypeDic[flowdatatype],flowDataModeDic[flowdatamode]);
+            }
+            catch (Exception e)
+            {
+                WriteTraceText("Rumaster Set FlowDataMode!--" + e.Message);
+            }
+        }
+        private string RumasterGetFlowDataMode(string cpriport, string flowdirection, string flowdatatype)
+        {
+            string data="";
+            try
+            {
+                data=icdf.GetFlowDataMode(cpriport, flowDirectionDic[flowdirection], flowDataTypeDic[flowdatatype]).ToString();
+            }
+            catch (Exception e)
+            {
+                WriteTraceText("Rumaster Get FlowDataMode!--" + e.Message);
+            }
+            return data;
+        }
+
+        private string RumasterGetStartStopCondition(string cpriport, string flowdirection, string flowdatatype)
+        {
+            string data = "";
+            try
+            {
+                FlowStartCondition startCondition;
+                ushort[] startConditionPara;
+                FlowStopCondition stopCondition;
+                ushort[] stopConditionPara;
+                icdf.GetStartStopCondition(cpriport, flowDirectionDic[flowdirection], flowDataTypeDic[flowdatatype],out startCondition, out startConditionPara,out  stopCondition,out stopConditionPara);
+                string startConditionParameters = "";
+                int startparalen = startConditionPara.Length;
+                if (startparalen > 0)
+                {
+                    for (int i = startparalen - 1; i >0; i--)
+                    {                        
+                        startConditionParameters = startConditionParameters + startConditionPara[i] + SPACER_FLAG_SEC;
+                    }
+                    startConditionParameters = startConditionParameters + startConditionPara[0];
+                }
+
+                string stopConditionParameters = "";
+                int stopparalen = stopConditionPara.Length;
+                if (stopparalen > 0)
+                {
+                    if (stopCondition.ToString() == "CPRI_TIME_LENGTH")
+                    {
+                        stopparalen--;
+                    }
+                    for (int i = stopparalen - 1; i>0; i--)
+                    {
+                        stopConditionParameters = stopConditionParameters + stopConditionPara[i] + SPACER_FLAG_SEC;
+                    }
+                    stopConditionParameters = stopConditionParameters + stopConditionPara[0];
+                }
+
+
+                data = "startCondition=" + startCondition.ToString() + SPACER_FLAG_FIR + "startConditionParameters=" + startConditionParameters + SPACER_FLAG_FIR + "stopCondition=" + stopCondition.ToString() + SPACER_FLAG_FIR + "stopConditionParameters=" + stopConditionParameters;
 
             }
+            catch (Exception e)
+            {
+                WriteTraceText("Rumaster Get StartStop Condition!--" + e.Message);
+            }
 
-        }      
-        
+            return data;
+        }
+        private void RumasterSetStartStopCondition(string cpriport, string flowdirection ,string flowdatatype ,string startCondition,string startConditionPara , string stopCondition, string stopConditionPara)
+        {
+            try
+            {                
+                ushort[] startpara;
+                string[] startparastr = startConditionPara.Split(SPACER_FLAG_SEC);
+                ushort startparalen = 4;
+                if (startCondition == "CPRI_TIME")
+                {
+                    startparalen = 4;                     
+                }
+                else if (startCondition == "FRAME_PRE_START")
+                {
+                    startparalen = 2;                   
+                }
+                startpara = new ushort[startparalen];
+                if (startparastr.Length == startparalen)
+                {
+                    for (int i = 0; i < startparalen; i++)
+                    {
+                        startpara[i] = ushort.Parse(startparastr[startparalen - 1 - i]);
+                    }
+                }
+                else
+                {
+                    if ((startCondition == "CPRI_TIME") || (startCondition == "FRAME_PRE_START"))
+                    {
+                        WriteErrorText("startConditionPara Error");
+                    }
+                }
+
+                ushort[] stoppara;
+                string[] stopparastr = stopConditionPara.Split(SPACER_FLAG_SEC);
+                ushort stopparalen = 3;
+                stoppara = new ushort[stopparalen];
+                if (stopCondition == "CPRI_TIME_LENGTH")
+                { 
+                    if ( stopparastr.Length == stopparalen)
+                    {
+                        for (int i = 0; i < stopparalen; i++)
+                        {
+                            stoppara[i] = ushort.Parse(stopparastr[stopparalen-1-i]);
+                        }
+                    }
+                    else
+                    {
+                        WriteErrorText("stopConditionPara Error");
+                    }
+                }
+
+                icdf.SetStartStopCondition(cpriport, flowDirectionDic[flowdirection],flowDataTypeDic[flowdatatype],flowStartConditionDic[startCondition], startpara,flowStopConditionDic[stopCondition], stoppara);
+            }
+            catch (Exception e)  
+            {
+                WriteTraceText("Rumaster Set StartStop Condition!--" + e.Message);
+            }
+        }
         private void RumasterDeleteAllCarriers(string cpriport, string flowdirection)
         {
             try
