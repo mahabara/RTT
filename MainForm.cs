@@ -33,6 +33,10 @@ namespace RTT
 {
     public partial class MainForm : Form
     {
+        //
+        char SPACER_FLAG_FIR = '#'; //字符串分割符，用于socete字符串传输第一层分割
+        char SPACER_FLAG_SEC = '|'; //字符串分割符，用于socete字符串传输第二层分割
+
         //debug log
         private bool _debug = false;
         private bool _log = false;
@@ -42,6 +46,10 @@ namespace RTT
         SerialPort _COM2 = new SerialPort();
         string _com2trans = "\r";
         //bool waitingForreceive = false;
+
+        //ts cmd execute flag
+        int _rrusend = 0;
+        int _rruresp = 0;
 
         //lock
         private Object _lock_RRUCOM = new Object();
@@ -60,6 +68,9 @@ namespace RTT
         TslControlClient tsl;
         IRumaControlClient rumaClient;
         Tiger.Ruma.IRumaCpriDataFlow icdf;
+        Tiger.Ruma.IRumaCarrierConfig rCarrierConfig;
+        Tiger.Ruma.IRumaCpriConfig rCpriConfig;
+        Tiger.Ruma.IRumaServerBase rServerBase;
         string _cpriport;
         string[] selectedCpriPorts = new string[] { "1A", "1B" };
 
@@ -69,19 +80,69 @@ namespace RTT
 
         int[] rxIqBandWidth = new int[] { 64, 64 };
 
-        bool trigger1 = true;
+        
 
-        bool trigger2 = true;
+        //Rumaster Dictionary
+        private static readonly Dictionary<string, CpriFlowDirection> flowDirectionDic = new Dictionary<string, CpriFlowDirection>
+        {
+            {"TX", CpriFlowDirection.TX},
+            {"RX", CpriFlowDirection.RX}
+        };
+        private static readonly Dictionary<string, SampleFrequency> freqDic = new Dictionary<string, SampleFrequency>
+        {
+            {"Frequency_30_72", SampleFrequency.Frequency_30_72},
+            {"Frequency_15_36", SampleFrequency.Frequency_15_36},
+            {"Frequency_23_04", SampleFrequency.Frequency_23_04},
+            {"Frequency_19_20", SampleFrequency.Frequency_19_20},
+            {"Frequency_7_68", SampleFrequency.Frequency_7_68},
+            {"Frequency_3_84", SampleFrequency.Frequency_3_84},
+            {"Frequency_1_92", SampleFrequency.Frequency_1_92},
+            {"Frequency_0_96", SampleFrequency.Frequency_0_96}
+        };
 
-        bool trigger3 = true;
+        private static readonly Dictionary<string, Technology> technologyDic = new Dictionary<string, Technology>
+        {
+            {"LTE", Technology.LTE},
+            {"GSM", Technology.GSM},
+            {"CDMA", Technology.CDMA},
+            {"WCDMA_5_BIT", Technology.WCDMA_5_BIT},
+            {"WCDMA_7_BIT", Technology.WCDMA_7_BIT}
+        };
+        private static readonly Dictionary<string, bool> boolDic = new Dictionary<string, bool>
+        {
+            {"true", true},
+            {"false", false}
+        };
+        private static readonly Dictionary<string, SyncMode> syncModeDic = new Dictionary<string, SyncMode>
+        {
+            {"FSINFO", SyncMode.FSINFO},
+            {"CUSTOM", SyncMode.CUSTOM},
+            {"RX_TIMING", SyncMode.RX_TIMING}            
+        };
+        private static readonly Dictionary<string, LineRate> lineRateDic = new Dictionary<string, LineRate>
+        {
+            {"LR1_2", LineRate.LR1_2},
+            {"LR2_5", LineRate.LR2_5},
+            {"LR4_9", LineRate.LR4_9},
+            {"LR9_8", LineRate.LR9_8}
+        };
+        private static readonly Dictionary<string, CpriVersion> cpriVerDic = new Dictionary<string, CpriVersion>
+        {
+            {"VERSION_1", CpriVersion.VERSION_1},
+            {"VERSION_2", CpriVersion.VERSION_2}            
+        };
 
-        bool trigger4 = true;
-
-        bool allocateAuxPort = true;
-
-        bool allocateDebugPort = true;
-        System.UInt32 totalRxBufferSize = 1024;
-        System.UInt32 totalTxBufferSize = 1024;
+        private static readonly Dictionary<string, LTU> ltuDic = new Dictionary<string, LTU>
+        {
+            {"INT_REF", LTU.INT_REF},
+            {"EXT_REF", LTU.EXT_REF},
+            {"APP_REF1", LTU.APP_REF1},
+            {"APP_REF2", LTU.APP_REF2},
+            {"APP_REF3", LTU.APP_REF3},
+            {"APP_REF4", LTU.APP_REF4},
+            {"APP_REF5", LTU.APP_REF5},
+            {"APP_REF6", LTU.APP_REF6}
+        };
         //visa
         bool VisaSwitch = true;//true ==visa32
         
@@ -155,9 +216,10 @@ namespace RTT
         Thread _createServer;
         System.Net.Sockets.TcpListener listener;
 
-      
+
         //System.Windows.Forms.Timer
-        System.Windows.Forms.Timer socketprocesstimer = new System.Windows.Forms.Timer();
+        //System.Windows.Forms.Timer socketprocesstimer = new System.Windows.Forms.Timer();
+        System.Timers.Timer socketprocesstimer = new System.Timers.Timer();
         System.Timers.Timer _evmtimer = new System.Timers.Timer();
         //System.Windows.Forms.Timer _evmtimer = new System.Windows.Forms.Timer();
 
@@ -707,6 +769,13 @@ namespace RTT
                     //tempstr = this._COM_RRU.ReadExisting();
                     n = this._COM_RRU.Read(readbuf, 0, readbuf.Length);
                     buf = Encoding.ASCII.GetChars(readbuf);
+                    
+                    //foreach(var b in readbuf)
+                    //{
+                    //    WriteDebugText("count+" + b);
+                    //}
+                    
+                    
                     if (n>0)
                     {
                         for(int i=0; i!= buf.Length; i++)
@@ -721,11 +790,25 @@ namespace RTT
                                     WriteTraceText(tempstr);
                                     if (this.socketTag == true)
                                     {
-                                        this.socketbuilder.Append(tempstr);
+                                        this.socketbuilder.Append(tempstr+'\n');
 
                                     }
                                     builder.Clear();
                                 }
+                            }
+                            else if(buf[i]=='$')
+                            {
+                                builder.Append(buf[i]);
+                                tempstr = builder.ToString();
+                                WriteTraceText(tempstr);
+                                
+                                if (this.socketTag == true)
+                                {
+                                    this.socketbuilder.Append(tempstr);
+
+                                }
+                                _rruresp++;
+                                builder.Clear();
                             }
                             else
                             {
@@ -1347,6 +1430,7 @@ namespace RTT
                             if (cmds.Length >= 3)
                             {
                                 this.RumasterSetIQfile(cmds[1], cmds[2]);
+                                
                             }
 
 
@@ -1357,6 +1441,91 @@ namespace RTT
                             if (cmds.Length >= 3)
                             {
                                 this.RumasterSetCPCfile(cmds[1], cmds[2]);
+                            }
+                        }
+                        else if (sendcmd.Contains("CpcFileSetLoopLengthFromIQFile"))
+                        {
+                            string[] cmds = sendcmd.Split('#');
+                            if (cmds.Length >= 4)
+                            {
+                                this.RumasterCpcFileSetLoopLengthFromIQFile(cmds[1], cmds[2], cmds[3]);
+                            }
+                            else
+                            {
+                                WriteTraceText("Please check parameters first!");
+                            }
+                        }
+                        
+                        else if (sendcmd.Contains("DeleteAllCarriers"))
+                        {
+                            string[] cmds = sendcmd.Split(SPACER_FLAG_FIR);
+                            if (cmds.Length >= 3)
+                            {
+                                this.RumasterDeleteAllCarriers(cmds[1], cmds[2]);
+                            }
+                        }
+                        else if (sendcmd.Contains("DeleteCarrier"))
+                        {
+                            string[] cmds = sendcmd.Split(SPACER_FLAG_FIR);
+                            if (cmds.Length >= 4)
+                            {
+                                this.RumasterDeleteCarrier(cmds[1], cmds[2], cmds[3]);
+                            }
+                        }
+                        else if (sendcmd.Contains("AddCarrier"))
+                        {
+                            string[] cmds = sendcmd.Split(SPACER_FLAG_FIR);
+                            if (cmds.Length >= 7)
+                            {
+                                this.RumasterAddCarrier(cmds[1], cmds[2], cmds[3], cmds[4], cmds[5], cmds[6]);
+                            }
+                        }
+                        else if (sendcmd.Contains("GetCarrierConfig"))
+                        {
+                            string[] cmds = sendcmd.Split(SPACER_FLAG_FIR);
+                            if (cmds.Length >= 4)
+                            {
+                                result = this.RumasterGetCarrierConfig(cmds[1], cmds[2], cmds[3]);                                
+                            }
+                        }
+                        else if (sendcmd.Contains("SetCarrierConfig"))
+                        {
+                            string[] cmds = sendcmd.Split(SPACER_FLAG_FIR);
+                            if (cmds.Length >= 14)
+                            {
+                                this.RumasterSetCarrierConfig(cmds[1], cmds[2], cmds[3], cmds[4], cmds[5], cmds[6], cmds[7], cmds[8], cmds[9], cmds[10], cmds[11], cmds[12], cmds[13]);
+                            }                           
+                        }
+                        else if (sendcmd.Contains("SetCpriConfig"))
+                        {                            
+                            string[] cmds = sendcmd.Split(SPACER_FLAG_FIR);
+                            if (cmds.Length >= 4)
+                            {
+                                this.RumasterSetCpriConfig(cmds[1], cmds[2], cmds[3]);
+                            }
+                        }
+                        else if (sendcmd.Contains("GetCpriConfig"))
+                        {
+                            string[] cmds = sendcmd.Split(SPACER_FLAG_FIR);
+                            if (cmds.Length >= 3)
+                            {
+                                result = this.RumasterGetCpriConfig(cmds[1], cmds[2]);
+                            }
+                        }
+                        else if (sendcmd.Contains("GetPllRef"))
+                        {
+                            string[] cmds = sendcmd.Split(SPACER_FLAG_FIR);
+                            if (cmds.Length >= 3)
+                            {
+                                result = this.RumasterGetPllRef(cmds[1], cmds[2]);
+                            }
+                        }
+                        else if (sendcmd.Contains("SetPllRef"))
+                        {
+                            string[] cmds = sendcmd.Split(SPACER_FLAG_FIR);
+                            if (cmds.Length >= 3)
+                            {
+                                 this.RumasterSetPllRef(cmds[1], cmds[2]);
                             }
                         }
                         else if (sendcmd.Contains("startplayback"))
@@ -1589,22 +1758,36 @@ namespace RTT
                     //delay do not equal to 0, need to return result,start timer and return result
                     if (delay != 0)
                     {
-                        if (delay < 500)
-                            delay = 500;
+                        
                         this.socketTag = true;
                         this.socketbuilder.Clear();
-                        this.socketprocesstimer.Interval = delay;
-                        this.socketprocesstimer.Start();
+                        //socketprocesstimer.Interval = delay;
+                        //socketprocesstimer.Enabled = true;
+                        //socketprocesstimer.Elapsed += new System.Timers.ElapsedEventHandler(socketprocesstimer_Tick);
+                        //this.socketprocesstimer.Interval = delay;
+                        //this.socketprocesstimer.Start();
+                        for (int i = 0; i != 4; i++)
+                        {
+                            if (_rrusend == _rruresp)
+                            {
+                                this.send_to_rru(cmd, delay);
+                                break;
+                            }
+                            Thread.Sleep(300);
+                            if (i == 3)
+                                WriteTraceText("cmd can't be execute:" + cmd);
+                        }
                         
-                        this.send_to_rru(cmd, delay);
                         
                         Thread.Sleep(delay);
                         for (int i=0; i<5;i++)
                         {
-                            string tempstr = this.socketbuilder.ToString().TrimEnd();
-                            if (tempstr.TrimEnd().EndsWith("$")|| tempstr.Contains('$'))
+                            string tempstr = this.socketbuilder.ToString();
+                            if (tempstr.TrimEnd().EndsWith("$"))
                             {
                                 result = tempstr;
+                                this.socketTag = false;
+                                this.socketbuilder.Clear();
                                 WriteDebugText("resp result is: "+ result);
                                 break;
                             }
@@ -1612,29 +1795,49 @@ namespace RTT
                             {
                                 if(i!=4)
                                 {
-                                    Thread.Sleep(200);
+                                    Thread.Sleep(200*i);
                                     continue;
                                 }
                                 else
                                 {
-                                    tempstr = this.socketbuilder.ToString().TrimEnd();
+                                    
+                                    tempstr = this.socketbuilder.ToString();
                                     result = tempstr;
                                     WriteDebugText("socket result from rru: " + result);
                                     if (result.Length == 0)
                                         result = socketNoresult;
+                                    this.socketTag = false;
+                                    this.socketbuilder.Clear();
                                     break;
                                 }
                                 
                             }
                                 
                         }
-                        this.socketTag = false;
+                        //this.socketTag = false;
 
                         //this.socketbuilder.Clear();
                     }
                     else
                     {
-                        this.send_to_rru(cmd);
+                        for (int i = 0; i != 4; i++)
+                        {
+                            if (_rrusend == _rruresp)
+                            {
+                                if(_rrusend>1000)
+                                {
+                                    _rrusend = 0;
+                                    _rruresp = 0;
+                                }
+                                this.send_to_rru(cmd);
+                                
+                                break;
+                            }
+                            Thread.Sleep(200);
+                            if (i == 3)
+                                WriteTraceText("cmd can't be execute:" + cmd);
+                        }
+                        
                         result = socketNoresult;
                     }
                 }
@@ -1696,6 +1899,28 @@ namespace RTT
                 
             }
         }
+        //rumaster switch CpcFileSetLoopLengthFromIQFile
+        private void RumasterCpcFileSetLoopLengthFromIQFile(string cpriport, string filepath,string iqfile)
+        {
+            WriteTraceText("RumasterCpcFileSetLoopLengthFromIQFile : cpc-" + filepath+",IQ-"+ iqfile);
+
+            try
+            {
+
+                icdf.CpcFilesClearAll(cpriport);
+                icdf.CpcFileAdd(cpriport, filepath);
+                icdf.CpcSetAxcMode(cpriport, Tiger.Ruma.TxAxcMode.CPC_FILES);
+                icdf.CpcFileSetLoopLengthFromIQFile(cpriport, filepath, iqfile);
+                icdf.CpcFileSetLoopLength(cpriport, filepath, 2);
+                icdf.CpcFileSetCurrent(cpriport, filepath);
+            }
+            catch (Exception e)
+            {
+                WriteTraceText("Rumaster set CPC file failed!--" + e.Message);
+
+            }
+
+        }
         //rumaster switch IQ file
         private void RumasterSetIQfile(string cpriport,string filepath)
         {
@@ -1731,16 +1956,270 @@ namespace RTT
             }
             catch(Exception e)
             {
-                WriteTraceText("Rumaster set CPC file failed!--"+ e.Message);
-                
+                WriteTraceText("Rumaster set CPC file failed!--" + e.Message);
+
             }
+
+        }      
+        
+        private void RumasterDeleteAllCarriers(string cpriport, string flowdirection)
+        {
+            try
+            {
+                rCarrierConfig.DeleteAllCarriers(cpriport, flowDirectionDic[flowdirection]);
+            }
+            catch (Exception e)
+            {
+                WriteTraceText("Rumaster Delete All Carriers!--" + e.Message);
+            }
+        }
+        private void RumasterDeleteCarrier(string cpriport, string flowdirection, string carrierindex)
+        {
+            try
+            {
+                rCarrierConfig.DeleteCarrier(cpriport, flowDirectionDic[flowdirection], byte.Parse(carrierindex));
+            }
+            catch (Exception e)
+            {
+                WriteTraceText("Rumaster Delete Carriers!--" + e.Message);
+            }
+        }
+        
+
+        private void RumasterAddCarrier(string cpriport, string flowdirection,string carrierid, string axccontainer, string frequency, string technology)
+        {           
+            try
+            {                
+                byte carrierIndex= byte.Parse("0");
+                string consistencyWarning="none";    
+                rCarrierConfig.AddCarrier(cpriport, flowDirectionDic[flowdirection], byte.Parse(carrierid), uint.Parse(axccontainer), freqDic[frequency], technologyDic[technology], out carrierIndex,out  consistencyWarning);
+                          
+            }
+            catch (Exception e)
+            {
+                WriteTraceText("Rumaster Add Carrier failed!--" + e.Message);
+            }
+        }
+        private string showCarrierData(CarrierData data)
+        {
+            //#cpriPort#flowDirection#axcContainerGroupLength#bfPeriod#carrierId#carrierNumber#enabled#fsInfo#gain#frequency##axcContainer#syncMode#technology 
+            string strdata = "";
+            
+            string carrierNumber = data.carrierNumber.ToString();           
+            strdata = strdata + "Number=" + carrierNumber + SPACER_FLAG_SEC;
+            if (data.enabled == true)
+            {                
+                strdata = strdata + "Enabled=" + "true" + SPACER_FLAG_SEC;
+            }
+            else if (data.enabled == false)
+            {               
+                strdata = strdata + "Enabled=" + "false" + SPACER_FLAG_SEC;
+            }           
+            string carrierId = data.carrierId.ToString();           
+            strdata = strdata + "Id=" + carrierId + SPACER_FLAG_SEC;
+            string tech = data.technology.ToString();            
+            strdata = strdata + "Technology=" + tech + SPACER_FLAG_SEC;
+            string Frequency = data.sampleFrequency.ToString();
+            strdata = strdata + "SampleFrequency=" + Frequency + SPACER_FLAG_SEC;
+
+            string startAxcContainer = data.startAxcContainer.ToString();
+            strdata = strdata + "AxcContainer=" + startAxcContainer + SPACER_FLAG_SEC;
+
+            Gain gaindata = data.gain;
+
+            if (gaindata.GainEnable == true)
+            {
+                strdata = strdata + "GainEnable=" + "true" + SPACER_FLAG_SEC;
+            }
+            else if (gaindata.GainEnable == false)
+            {
+                strdata = strdata + "GainEnable=" + "false" + SPACER_FLAG_SEC;
+            }
+           
+            string gaindb = gaindata.GainDb.ToString();
+            strdata = strdata + "GainDb=" + gaindb + SPACER_FLAG_SEC;
+            string gainfact = gaindata.GainFact.ToString();
+            strdata = strdata + "GainFact=" + gainfact + SPACER_FLAG_SEC;
+
+
+            FsInfo fsinfodata = data.fsInfo;
+            string addr = fsinfodata.Addr.ToString();
+            strdata = strdata + "FsInfoAddress=" + addr + SPACER_FLAG_SEC;
+            string hf = fsinfodata.Hf.ToString();
+            strdata = strdata + "FsInfoHF=" + hf + SPACER_FLAG_SEC;
+            string bf = fsinfodata.Bf.ToString();
+            strdata = strdata + "FsInfoBF=" + bf + SPACER_FLAG_SEC;
+            string bfoffset = fsinfodata.BfOffset.ToString();
+            strdata = strdata + "FsInfoBfOffset=" + bfoffset + SPACER_FLAG_SEC;
+
+
+            string axcContainerGroupLength = data.axcContainerGroupLength.ToString();
+            strdata = strdata + "axcContainerGroupLength=" + axcContainerGroupLength + SPACER_FLAG_SEC;
+            string bfPeriod = data.bfPeriod.ToString();
+            strdata = strdata + "bfPeriod=" + bfPeriod + SPACER_FLAG_SEC;
+
+            string syncmode = data.syncMode.ToString();
+            strdata = strdata + "syncMode=" + syncmode;
+
+            //WriteTraceText(strdata);
+            return strdata;
             
         }
+        private string  RumasterGetCarrierConfig(string cpriport, string flowdirection, string carrierindex)
+        {
+            string getdata = "";
 
+            try
+            {
+                CarrierData data = rCarrierConfig.GetCarrierConfig(cpriport, flowDirectionDic[flowdirection], byte.Parse(carrierindex));                
+                getdata=showCarrierData(data);
+            }
+            catch (Exception e)
+            {
+                WriteTraceText("Rumaster Get Carrier Config failed!--" + e.Message);
+            }
+            return getdata;
+        }
+        private void RumasterSetCarrierConfig(string cpriport, string flowdirection, string carriernumber, string enabled, string carrierid, string technology, string frequency, string axccontainer, string gain, string fsinfo,string axcContainerGroupLength,string bfPeriod,string syncmode)
+        {
+
+           
+            try
+            {     
+                
+                          
+                FsInfo fsinfoData = new FsInfo();
+                string[] fsinfostr = fsinfo.Split(SPACER_FLAG_SEC);
+                if (fsinfostr.Length >= 4)
+                {
+                    fsinfoData.Addr = byte.Parse(fsinfostr[0]);
+                    fsinfoData.Hf = byte.Parse(fsinfostr[1]);
+                    fsinfoData.Bf = byte.Parse(fsinfostr[2]);                   
+                    fsinfoData.BfOffset = byte.Parse(fsinfostr[3]);                    
+                }
+                
+
+                Gain  gainData = new Gain();
+                string[] gainstr = gain.Split(SPACER_FLAG_SEC);
+                if (fsinfostr.Length >= 3)
+                {
+                    gainData.GainEnable = boolDic[gainstr[0]];
+                    gainData.GainDb = byte.Parse(gainstr[1]);
+                    gainData.GainFact = byte.Parse(gainstr[2]);                    
+                }
+
+                CarrierData data = new CarrierData();
+                data.axcContainerGroupLength = byte.Parse(axcContainerGroupLength);
+                data.bfPeriod = byte.Parse(bfPeriod);
+                data.carrierId = byte.Parse(carrierid);
+                data.carrierNumber = byte.Parse(carriernumber);
+                data.enabled = boolDic[enabled];
+                data.sampleFrequency = freqDic[frequency];
+                data.technology = technologyDic[technology];
+                data.startAxcContainer = byte.Parse(axccontainer);
+                data.syncMode = syncModeDic[syncmode];
+                data.fsInfo = fsinfoData;
+                data.gain = gainData;
+
+                
+                rCarrierConfig.SetCarrierConfig(cpriport, flowDirectionDic[flowdirection], data);
+                showCarrierData(data);
+
+
+            }
+            catch (Exception e)
+            {
+                WriteTraceText("Rumaster Set Carrier Config failed!--" + e.Message);
+            }
+        }
+
+
+        private void RumasterSetCpriConfig(string paraname,string cpriport,string paravalue)
+        {           
+            try
+            {
+                switch(paraname)
+                {
+                    case "LineRate":
+                        rCpriConfig.SetLineRate(cpriport, lineRateDic[paravalue]);
+                        break;
+                    case "CPRIVer":
+                        rCpriConfig.SetCpriVersion(cpriport, cpriVerDic[paravalue]);
+                        break;
+                    case "ScrambSeed":
+                        rCpriConfig.SetScramblingSeed(cpriport,uint.Parse(paravalue));                    
+                        break;
+                    default:
+                        WriteErrorText("Undefined Rumaster Set CPRI Config parament:  " + paraname);
+                        break;
+                }
+            }
+            catch (Exception e)
+            {
+                WriteTraceText("Rumaster Set CPRI Config: "+paraname +" failed!--" + e.Message);
+            }           
+        }
+        private string RumasterGetCpriConfig(string paraname, string cpriport)
+        {
+            string data = "";
+            try
+            {
+                
+                switch (paraname)
+                {
+                    
+                    case "LineRate":
+                        data = rCpriConfig.GetLineRate(cpriport).ToString();
+                        break;
+                    case "CPRIVer":
+                        data = rCpriConfig.GetCpriVersion(cpriport).ToString();
+                        break;
+                    case "ScrambSeed":
+                        data = rCpriConfig.GetScramblingSeed(cpriport).ToString();
+                        break;
+                    default:
+                        WriteErrorText("Undefined Rumaster Set CPRI Config parament:  " + paraname);
+                        break;
+                }
+
+            }
+            catch (Exception e)
+            {
+                WriteTraceText("Rumaster Set CPRI Config: " + paraname + " failed!--" + e.Message);
+            }
+            return data;
+        }
+        private string  RumasterGetPllRef(string hwSn, string reflock)
+        {
+            string data = "";
+            try
+            {
+                bool locked = boolDic[reflock];
+                data = rServerBase.GetPllRef(hwSn, ref locked).ToString();               
+            }
+            catch (Exception e)
+            {
+                WriteTraceText("Rumaster Get PllRef  failed!--" + e.Message);
+            }
+            return data;
+        }
+        private void RumasterSetPllRef(string hwSn, string ltustr)
+        {           
+            try
+            {               
+                rServerBase.SetPllRef(hwSn, ltuDic[ltustr]);
+            }
+            catch (Exception e)
+            {
+                WriteTraceText("Rumaster Set PllRef  failed!--" + e.Message);
+            }           
+        }
         //timer tick
-        private void socketprocesstimer_Tick(object sender,EventArgs e)
+        //private void socketprocesstimer_Tick(object sender,EventArgs e)
+        private void socketprocesstimer_Tick(object sender, System.Timers.ElapsedEventArgs e)
         {
             //time up to return
+            
             this.socketprocesstimer.Stop();
             this.socketTag = false;
             
@@ -1827,7 +2306,7 @@ namespace RTT
         //to rru 
         private void send_to_rru(string cmd="",int delay = 0)
         {
-            Thread.Sleep(200);
+            Thread.Sleep(100);
             string cmdneedsend;
             if (cmd != "")
                 cmdneedsend = cmd;
@@ -1886,12 +2365,13 @@ namespace RTT
                             try
                             {
                                 this._COM_RRU.Write(cmdneedsend + '\r');
-                                
+                                _rrusend++;
                                 WriteDebugText("write to com_rru: " + cmdneedsend);
                                 //waitingForreceive = true;
                             }
                             catch(Exception e)
                             {
+                                
                                 WriteTraceText(cmd);
                                 WriteErrorText("write to com_rru failed:" + e.Message);
                             }
@@ -2303,6 +2783,8 @@ namespace RTT
             
         }
 
+        
+
         public void WriteText(string text)
         {
             this.Invoke((EventHandler)(delegate
@@ -2327,7 +2809,7 @@ namespace RTT
 
             }));
         }
-
+        
         public void WriteDebugText(string text)
         {
             if(this._debug)
@@ -2430,7 +2912,7 @@ namespace RTT
                     {
                         
                         command_Process(cmd);
-                        Thread.Sleep(420);
+  
                     }
                 }
             }
@@ -2448,9 +2930,9 @@ namespace RTT
                     {
                         
                         command_Process(cmd);
-                        Thread.Sleep(500);
-                        
+  
                     }
+                    
                 }
             }
             _tscmd = null;
@@ -2827,10 +3309,17 @@ namespace RTT
             SetupForm sf = new SetupForm(this.addr);
             if(sf.ShowDialog() == DialogResult.OK)
             {
-                this.addr.RRU = sf.port_rru;
-                this.addr.Baudrate_rru = sf.baudrate_rru;
-                this.addr.Baudrate_com2 = sf.baudrate_2;
-                this.addr.SERIAL2 = sf.port_2;
+                if(sf.port_rru!="")
+                {
+                    this.addr.RRU = sf.port_rru;
+                    this.addr.Baudrate_rru = sf.baudrate_rru;
+                }
+                if(sf.port_2!="")
+                {
+                    this.addr.Baudrate_com2 = sf.baudrate_2;
+                    this.addr.SERIAL2 = sf.port_2;
+                }
+                
                 this.addr.SA = sf.localaddr.SA;
                 this.addr.SG = sf.localaddr.SG;
                 this.addr.SG2 = sf.localaddr.SG2;
@@ -2860,7 +3349,7 @@ namespace RTT
                         ctl.Text = this.addr.Baudrate_com2;
                     }
                 }
-                if (this.addr.RRU != "")
+                if (sf.port_rru != "")
                 {
                     
                     if (this._COM_RRU.IsOpen == true)
@@ -2889,7 +3378,7 @@ namespace RTT
                     }
                                        
                 }
-                if (this.addr.SERIAL2 != "")
+                if (sf.port_2 != "")
                 {
                     if (this._COM2.IsOpen == true)
                     {
@@ -3304,6 +3793,9 @@ namespace RTT
 
 
             this.icdf = this.rumaClient.CpriDataFlow;
+            this.rCarrierConfig = this.rumaClient.CarrierConfig;
+            this.rCpriConfig = this.rumaClient.CpriConfig;
+            this.rServerBase = this.rumaClient.PlatformUtilities;
             this.tag_rumaster.BackColor = Color.SpringGreen;
                 
                 
