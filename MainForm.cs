@@ -1503,6 +1503,14 @@ namespace RTT
                                 this.RumasterSetStartStopCondition(cmds[1], cmds[2], cmds[3], cmds[4], cmds[5], cmds[6], cmds[7]);
                             }
                         }
+                        else if (sendcmd.Contains("GetFlowDataMode"))
+                        {
+                            string[] cmds = sendcmd.Split('#');
+                            if (cmds.Length >= 4)
+                            {
+                                result = this.RumasterGetFlowDataMode(cmds[1], cmds[2], cmds[3]);
+                            }
+                        }
 						else if (sendcmd.Contains("SetFlowDataMode"))
                         {
                             string[] cmds = sendcmd.Split('#');
