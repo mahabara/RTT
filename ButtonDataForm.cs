@@ -62,7 +62,7 @@ namespace RTT
         private void button_copy_Click(object sender, EventArgs e)
         {
             StringBuilder Cliptxt = new StringBuilder();
-            Cliptxt.Append(_buttonname).Append("$");
+            Cliptxt.Append(_buttonname).Append("!");
             if (textBox1.Text != null)
                 _buttonname = textBox1.Text;
             if (richTextBox1.Text != null)
@@ -74,7 +74,7 @@ namespace RTT
                     {
                         if (i != textarray.Length - 1)
                         {
-                            Cliptxt.Append(textarray[i]).Append("#");
+                            Cliptxt.Append(textarray[i]).Append("@");
                         }
                         else
                             Cliptxt.Append(textarray[i]);
@@ -97,14 +97,14 @@ namespace RTT
             if (iData.GetDataPresent(DataFormats.Text))
             {
                 string tempstr = (String)iData.GetData(DataFormats.Text);
-                string[] tempstrarryall = tempstr.Split('$');
+                string[] tempstrarryall = tempstr.Split('!');
                 if(tempstrarryall!=null&& tempstrarryall.Length>1)
                 {
                     
                     this.textBox1.Text = tempstrarryall[0];
-                    if (tempstrarryall[1].Contains('#'))
+                    if (tempstrarryall[1].Contains('@'))
                     {
-                        string[] tempstrarrydata = tempstrarryall[1].Split('#');
+                        string[] tempstrarrydata = tempstrarryall[1].Split('@');
                         if(tempstrarrydata!=null&& tempstrarrydata.Length>1)
                         {
                             for(int i = 0; i!= tempstrarrydata.Length; i++)

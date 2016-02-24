@@ -172,7 +172,7 @@
             this.groupBox1.Controls.Add(this.label10);
             this.groupBox1.Controls.Add(this.comboBox9);
             this.groupBox1.Controls.Add(this.comboBox10);
-            this.groupBox1.Location = new System.Drawing.Point(12, 197);
+            this.groupBox1.Location = new System.Drawing.Point(242, 13);
             this.groupBox1.Name = "groupBox1";
             this.groupBox1.Size = new System.Drawing.Size(224, 178);
             this.groupBox1.TabIndex = 10;
@@ -266,7 +266,7 @@
             // 
             // button_ok
             // 
-            this.button_ok.Location = new System.Drawing.Point(79, 381);
+            this.button_ok.Location = new System.Drawing.Point(305, 197);
             this.button_ok.Name = "button_ok";
             this.button_ok.Size = new System.Drawing.Size(75, 25);
             this.button_ok.TabIndex = 11;
@@ -276,7 +276,7 @@
             // 
             // button_cancel
             // 
-            this.button_cancel.Location = new System.Drawing.Point(160, 380);
+            this.button_cancel.Location = new System.Drawing.Point(386, 197);
             this.button_cancel.Name = "button_cancel";
             this.button_cancel.Size = new System.Drawing.Size(75, 25);
             this.button_cancel.TabIndex = 12;
@@ -288,7 +288,7 @@
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            this.ClientSize = new System.Drawing.Size(248, 425);
+            this.ClientSize = new System.Drawing.Size(473, 235);
             this.ControlBox = false;
             this.Controls.Add(this.button_cancel);
             this.Controls.Add(this.button_ok);
@@ -297,7 +297,7 @@
             this.MaximizeBox = false;
             this.MinimizeBox = false;
             this.Name = "SerialPortSetupForm";
-            this.Text = "SerialportSetup";
+            this.Text = "Serial Device Setup";
             this.Load += new System.EventHandler(this.SerialPortSetupForm_Load);
             this.groupBox2.ResumeLayout(false);
             this.groupBox2.PerformLayout();

@@ -35,20 +35,28 @@
             this.openTsFileToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.exitToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.deviceToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
-            this.menuSetup = new System.Windows.Forms.ToolStripMenuItem();
+            this.item_serial_device = new System.Windows.Forms.ToolStripMenuItem();
+            this.visaDeviceToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+            this.otherDeviceToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.measureMentToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.rXEVMToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+            this.sensitivityToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.helpToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.aboutToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.visaSwitchToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+            this.upgradeToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.toolStrip1 = new System.Windows.Forms.ToolStrip();
             this.rruConnButton = new System.Windows.Forms.ToolStripButton();
             this.toolStripButton2 = new System.Windows.Forms.ToolStripButton();
             this.DC5767A_ON = new System.Windows.Forms.ToolStripButton();
             this.DC5767A_OFF = new System.Windows.Forms.ToolStripButton();
             this.SACAPTURE = new System.Windows.Forms.ToolStripButton();
+            this.toolStripButton_capture2 = new System.Windows.Forms.ToolStripButton();
             this.Rumasterswitchbutton = new System.Windows.Forms.ToolStripButton();
             this.Serial2_conn_button = new System.Windows.Forms.ToolStripButton();
+            this.serial2_pow_on = new System.Windows.Forms.ToolStripButton();
+            this.serial2_pow_off = new System.Windows.Forms.ToolStripButton();
+            this.toolStripButton_telnet = new System.Windows.Forms.ToolStripButton();
             this.statusStrip1 = new System.Windows.Forms.StatusStrip();
             this.CmdProgressBar = new System.Windows.Forms.ToolStripProgressBar();
             this.InputBox = new System.Windows.Forms.TextBox();
@@ -57,6 +65,19 @@
             this.button_save = new System.Windows.Forms.Button();
             this.comboBox_instrumentprefix = new System.Windows.Forms.ComboBox();
             this.groupBox1 = new System.Windows.Forms.GroupBox();
+            this.label_terminal_IP = new System.Windows.Forms.Label();
+            this.comboBox_terminal_select = new System.Windows.Forms.ComboBox();
+            this.label10 = new System.Windows.Forms.Label();
+            this.tabControl_display = new System.Windows.Forms.TabControl();
+            this.tab_main_display = new System.Windows.Forms.TabPage();
+            this.dataDisplayBox = new System.Windows.Forms.RichTextBox();
+            this.cmenu_displayfont = new System.Windows.Forms.ContextMenuStrip(this.components);
+            this.backColorSettingToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+            this.foreColorSettingToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+            this.fontToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+            this.tabPage_remote = new System.Windows.Forms.TabPage();
+            this.Display_remote = new System.Windows.Forms.TextBox();
+            this.checkBox_secondary = new System.Windows.Forms.CheckBox();
             this.checkBox_Log = new System.Windows.Forms.CheckBox();
             this.checkBox_debug = new System.Windows.Forms.CheckBox();
             this.SerialpropertyBox = new System.Windows.Forms.GroupBox();
@@ -75,7 +96,6 @@
             this.label1 = new System.Windows.Forms.Label();
             this.checkBox_pause = new System.Windows.Forms.CheckBox();
             this.checkBox_AutoscrollDown = new System.Windows.Forms.CheckBox();
-            this.checkBoxHexSend = new System.Windows.Forms.CheckBox();
             this.groupBox2 = new System.Windows.Forms.GroupBox();
             this.tag_DC5767A = new System.Windows.Forms.Label();
             this.tag_rumaster = new System.Windows.Forms.Label();
@@ -84,15 +104,11 @@
             this.tag_rfbox2 = new System.Windows.Forms.Label();
             this.tag_rfbox1 = new System.Windows.Forms.Label();
             this.tag_sg2 = new System.Windows.Forms.Label();
+            this.checkBoxHexSend = new System.Windows.Forms.CheckBox();
             this.tag_sg1 = new System.Windows.Forms.Label();
             this.tag_sa = new System.Windows.Forms.Label();
             this.checkBoxHexView = new System.Windows.Forms.CheckBox();
             this.button_clearscreen = new System.Windows.Forms.Button();
-            this.dataDisplayBox = new System.Windows.Forms.RichTextBox();
-            this.cmenu_displayfont = new System.Windows.Forms.ContextMenuStrip(this.components);
-            this.backColorSettingToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
-            this.foreColorSettingToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
-            this.fontToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.InputArea = new System.Windows.Forms.GroupBox();
             this.button_sendcommand = new System.Windows.Forms.Button();
             this.tabControl1 = new System.Windows.Forms.TabControl();
@@ -103,20 +119,29 @@
             this.groupBox4 = new System.Windows.Forms.GroupBox();
             this.historyBox = new System.Windows.Forms.ListBox();
             this.toolTip1 = new System.Windows.Forms.ToolTip(this.components);
-            this.groupBox3 = new System.Windows.Forms.GroupBox();
-            this.button_executepy = new System.Windows.Forms.Button();
-            this.upgradeToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+            this.groupBox_script = new System.Windows.Forms.GroupBox();
+            this.textBox_interval = new System.Windows.Forms.TextBox();
+            this.label9 = new System.Windows.Forms.Label();
+            this.button_stop = new System.Windows.Forms.Button();
+            this.button_start = new System.Windows.Forms.Button();
+            this.label8 = new System.Windows.Forms.Label();
+            this.label7 = new System.Windows.Forms.Label();
+            this.textBox_rpt = new System.Windows.Forms.TextBox();
+            this.textBox_cmd = new System.Windows.Forms.TextBox();
             this.menuStrip1.SuspendLayout();
             this.toolStrip1.SuspendLayout();
             this.statusStrip1.SuspendLayout();
             this.groupBox1.SuspendLayout();
+            this.tabControl_display.SuspendLayout();
+            this.tab_main_display.SuspendLayout();
+            this.cmenu_displayfont.SuspendLayout();
+            this.tabPage_remote.SuspendLayout();
             this.SerialpropertyBox.SuspendLayout();
             this.groupBox2.SuspendLayout();
-            this.cmenu_displayfont.SuspendLayout();
             this.InputArea.SuspendLayout();
             this.cmmenu_tab.SuspendLayout();
             this.groupBox4.SuspendLayout();
-            this.groupBox3.SuspendLayout();
+            this.groupBox_script.SuspendLayout();
             this.SuspendLayout();
             // 
             // menuStrip1
@@ -158,22 +183,39 @@
             // deviceToolStripMenuItem
             // 
             this.deviceToolStripMenuItem.DropDownItems.AddRange(new System.Windows.Forms.ToolStripItem[] {
-            this.menuSetup});
+            this.item_serial_device,
+            this.visaDeviceToolStripMenuItem,
+            this.otherDeviceToolStripMenuItem});
             this.deviceToolStripMenuItem.Name = "deviceToolStripMenuItem";
-            this.deviceToolStripMenuItem.Size = new System.Drawing.Size(54, 20);
-            this.deviceToolStripMenuItem.Text = "Device";
+            this.deviceToolStripMenuItem.Size = new System.Drawing.Size(49, 20);
+            this.deviceToolStripMenuItem.Text = "Setup";
             // 
-            // menuSetup
+            // item_serial_device
             // 
-            this.menuSetup.Name = "menuSetup";
-            this.menuSetup.Size = new System.Drawing.Size(104, 22);
-            this.menuSetup.Text = "Setup";
-            this.menuSetup.Click += new System.EventHandler(this.menuSetup_Click);
+            this.item_serial_device.Name = "item_serial_device";
+            this.item_serial_device.Size = new System.Drawing.Size(142, 22);
+            this.item_serial_device.Text = "Serial Device";
+            this.item_serial_device.Click += new System.EventHandler(this.menuSetup_Click);
+            // 
+            // visaDeviceToolStripMenuItem
+            // 
+            this.visaDeviceToolStripMenuItem.Name = "visaDeviceToolStripMenuItem";
+            this.visaDeviceToolStripMenuItem.Size = new System.Drawing.Size(142, 22);
+            this.visaDeviceToolStripMenuItem.Text = "Visa Device";
+            this.visaDeviceToolStripMenuItem.Click += new System.EventHandler(this.visaDeviceToolStripMenuItem_Click);
+            // 
+            // otherDeviceToolStripMenuItem
+            // 
+            this.otherDeviceToolStripMenuItem.Name = "otherDeviceToolStripMenuItem";
+            this.otherDeviceToolStripMenuItem.Size = new System.Drawing.Size(142, 22);
+            this.otherDeviceToolStripMenuItem.Text = "Other Device";
+            this.otherDeviceToolStripMenuItem.Click += new System.EventHandler(this.otherDeviceToolStripMenuItem_Click);
             // 
             // measureMentToolStripMenuItem
             // 
             this.measureMentToolStripMenuItem.DropDownItems.AddRange(new System.Windows.Forms.ToolStripItem[] {
-            this.rXEVMToolStripMenuItem});
+            this.rXEVMToolStripMenuItem,
+            this.sensitivityToolStripMenuItem});
             this.measureMentToolStripMenuItem.Name = "measureMentToolStripMenuItem";
             this.measureMentToolStripMenuItem.Size = new System.Drawing.Size(92, 20);
             this.measureMentToolStripMenuItem.Text = "MeasureMent";
@@ -181,9 +223,15 @@
             // rXEVMToolStripMenuItem
             // 
             this.rXEVMToolStripMenuItem.Name = "rXEVMToolStripMenuItem";
-            this.rXEVMToolStripMenuItem.Size = new System.Drawing.Size(112, 22);
-            this.rXEVMToolStripMenuItem.Text = "RXEVM";
+            this.rXEVMToolStripMenuItem.Size = new System.Drawing.Size(127, 22);
+            this.rXEVMToolStripMenuItem.Text = "Rx-Evm";
             this.rXEVMToolStripMenuItem.Click += new System.EventHandler(this.rXEVMToolStripMenuItem_Click);
+            // 
+            // sensitivityToolStripMenuItem
+            // 
+            this.sensitivityToolStripMenuItem.Name = "sensitivityToolStripMenuItem";
+            this.sensitivityToolStripMenuItem.Size = new System.Drawing.Size(127, 22);
+            this.sensitivityToolStripMenuItem.Text = "Sensitivity";
             // 
             // helpToolStripMenuItem
             // 
@@ -198,16 +246,23 @@
             // aboutToolStripMenuItem
             // 
             this.aboutToolStripMenuItem.Name = "aboutToolStripMenuItem";
-            this.aboutToolStripMenuItem.Size = new System.Drawing.Size(152, 22);
+            this.aboutToolStripMenuItem.Size = new System.Drawing.Size(133, 22);
             this.aboutToolStripMenuItem.Text = "About";
             this.aboutToolStripMenuItem.Click += new System.EventHandler(this.aboutToolStripMenuItem_Click);
             // 
             // visaSwitchToolStripMenuItem
             // 
             this.visaSwitchToolStripMenuItem.Name = "visaSwitchToolStripMenuItem";
-            this.visaSwitchToolStripMenuItem.Size = new System.Drawing.Size(152, 22);
+            this.visaSwitchToolStripMenuItem.Size = new System.Drawing.Size(133, 22);
             this.visaSwitchToolStripMenuItem.Text = "Visa Switch";
             this.visaSwitchToolStripMenuItem.Click += new System.EventHandler(this.visaSwitchToolStripMenuItem_Click);
+            // 
+            // upgradeToolStripMenuItem
+            // 
+            this.upgradeToolStripMenuItem.Name = "upgradeToolStripMenuItem";
+            this.upgradeToolStripMenuItem.Size = new System.Drawing.Size(133, 22);
+            this.upgradeToolStripMenuItem.Text = "Upgrade";
+            this.upgradeToolStripMenuItem.Click += new System.EventHandler(this.upgradeToolStripMenuItem_Click);
             // 
             // toolStrip1
             // 
@@ -217,8 +272,12 @@
             this.DC5767A_ON,
             this.DC5767A_OFF,
             this.SACAPTURE,
+            this.toolStripButton_capture2,
             this.Rumasterswitchbutton,
-            this.Serial2_conn_button});
+            this.Serial2_conn_button,
+            this.serial2_pow_on,
+            this.serial2_pow_off,
+            this.toolStripButton_telnet});
             this.toolStrip1.Location = new System.Drawing.Point(0, 24);
             this.toolStrip1.Name = "toolStrip1";
             this.toolStrip1.Size = new System.Drawing.Size(1077, 25);
@@ -272,8 +331,18 @@
             this.SACAPTURE.ImageTransparentColor = System.Drawing.Color.Magenta;
             this.SACAPTURE.Name = "SACAPTURE";
             this.SACAPTURE.Size = new System.Drawing.Size(23, 22);
-            this.SACAPTURE.Text = "SA Capture";
-            this.SACAPTURE.Click += new System.EventHandler(this.SACAPTURE_Click);
+            this.SACAPTURE.Text = "Capture1";
+            this.SACAPTURE.MouseDown += new System.Windows.Forms.MouseEventHandler(this.SACAPTURE_MouseDown);
+            // 
+            // toolStripButton_capture2
+            // 
+            this.toolStripButton_capture2.DisplayStyle = System.Windows.Forms.ToolStripItemDisplayStyle.Image;
+            this.toolStripButton_capture2.Image = ((System.Drawing.Image)(resources.GetObject("toolStripButton_capture2.Image")));
+            this.toolStripButton_capture2.ImageTransparentColor = System.Drawing.Color.Magenta;
+            this.toolStripButton_capture2.Name = "toolStripButton_capture2";
+            this.toolStripButton_capture2.Size = new System.Drawing.Size(23, 22);
+            this.toolStripButton_capture2.Text = "Capture2";
+            this.toolStripButton_capture2.MouseDown += new System.Windows.Forms.MouseEventHandler(this.toolStripButton_capture2_MouseDown);
             // 
             // Rumasterswitchbutton
             // 
@@ -288,7 +357,6 @@
             // 
             // Serial2_conn_button
             // 
-            this.Serial2_conn_button.CheckOnClick = true;
             this.Serial2_conn_button.DisplayStyle = System.Windows.Forms.ToolStripItemDisplayStyle.Image;
             this.Serial2_conn_button.Image = ((System.Drawing.Image)(resources.GetObject("Serial2_conn_button.Image")));
             this.Serial2_conn_button.ImageTransparentColor = System.Drawing.Color.Magenta;
@@ -296,6 +364,36 @@
             this.Serial2_conn_button.Size = new System.Drawing.Size(23, 22);
             this.Serial2_conn_button.Text = "Serial2 Connect";
             this.Serial2_conn_button.Click += new System.EventHandler(this.Serial2_conn_button_Click);
+            // 
+            // serial2_pow_on
+            // 
+            this.serial2_pow_on.DisplayStyle = System.Windows.Forms.ToolStripItemDisplayStyle.Image;
+            this.serial2_pow_on.Image = ((System.Drawing.Image)(resources.GetObject("serial2_pow_on.Image")));
+            this.serial2_pow_on.ImageTransparentColor = System.Drawing.Color.Magenta;
+            this.serial2_pow_on.Name = "serial2_pow_on";
+            this.serial2_pow_on.Size = new System.Drawing.Size(23, 22);
+            this.serial2_pow_on.Text = "serial2_pow_on";
+            this.serial2_pow_on.Click += new System.EventHandler(this.serial2_pow_on_Click);
+            // 
+            // serial2_pow_off
+            // 
+            this.serial2_pow_off.DisplayStyle = System.Windows.Forms.ToolStripItemDisplayStyle.Image;
+            this.serial2_pow_off.Image = ((System.Drawing.Image)(resources.GetObject("serial2_pow_off.Image")));
+            this.serial2_pow_off.ImageTransparentColor = System.Drawing.Color.Magenta;
+            this.serial2_pow_off.Name = "serial2_pow_off";
+            this.serial2_pow_off.Size = new System.Drawing.Size(23, 22);
+            this.serial2_pow_off.Text = "serial2_pow_off";
+            this.serial2_pow_off.Click += new System.EventHandler(this.serial2_pow_off_Click);
+            // 
+            // toolStripButton_telnet
+            // 
+            this.toolStripButton_telnet.DisplayStyle = System.Windows.Forms.ToolStripItemDisplayStyle.Image;
+            this.toolStripButton_telnet.Image = ((System.Drawing.Image)(resources.GetObject("toolStripButton_telnet.Image")));
+            this.toolStripButton_telnet.ImageTransparentColor = System.Drawing.Color.Magenta;
+            this.toolStripButton_telnet.Name = "toolStripButton_telnet";
+            this.toolStripButton_telnet.Size = new System.Drawing.Size(23, 22);
+            this.toolStripButton_telnet.Text = "telnet";
+            this.toolStripButton_telnet.Click += new System.EventHandler(this.toolStripButton_telnet_Click);
             // 
             // statusStrip1
             // 
@@ -317,7 +415,7 @@
             this.InputBox.AcceptsReturn = true;
             this.InputBox.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left) 
             | System.Windows.Forms.AnchorStyles.Right)));
-            this.InputBox.Location = new System.Drawing.Point(133, 22);
+            this.InputBox.Location = new System.Drawing.Point(133, 20);
             this.InputBox.Name = "InputBox";
             this.InputBox.Size = new System.Drawing.Size(558, 20);
             this.InputBox.TabIndex = 0;
@@ -327,7 +425,7 @@
             // button_lock
             // 
             this.button_lock.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
-            this.button_lock.Location = new System.Drawing.Point(717, 205);
+            this.button_lock.Location = new System.Drawing.Point(717, 180);
             this.button_lock.Name = "button_lock";
             this.button_lock.Size = new System.Drawing.Size(100, 25);
             this.button_lock.TabIndex = 6;
@@ -339,7 +437,7 @@
             // button_load
             // 
             this.button_load.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
-            this.button_load.Location = new System.Drawing.Point(717, 143);
+            this.button_load.Location = new System.Drawing.Point(717, 118);
             this.button_load.Name = "button_load";
             this.button_load.Size = new System.Drawing.Size(100, 25);
             this.button_load.TabIndex = 7;
@@ -351,7 +449,7 @@
             // button_save
             // 
             this.button_save.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
-            this.button_save.Location = new System.Drawing.Point(717, 174);
+            this.button_save.Location = new System.Drawing.Point(717, 149);
             this.button_save.Name = "button_save";
             this.button_save.Size = new System.Drawing.Size(100, 25);
             this.button_save.TabIndex = 8;
@@ -363,7 +461,7 @@
             // comboBox_instrumentprefix
             // 
             this.comboBox_instrumentprefix.FormattingEnabled = true;
-            this.comboBox_instrumentprefix.Location = new System.Drawing.Point(6, 22);
+            this.comboBox_instrumentprefix.Location = new System.Drawing.Point(6, 19);
             this.comboBox_instrumentprefix.Name = "comboBox_instrumentprefix";
             this.comboBox_instrumentprefix.Size = new System.Drawing.Size(121, 21);
             this.comboBox_instrumentprefix.TabIndex = 9;
@@ -374,39 +472,182 @@
             this.groupBox1.Anchor = ((System.Windows.Forms.AnchorStyles)((((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom) 
             | System.Windows.Forms.AnchorStyles.Left) 
             | System.Windows.Forms.AnchorStyles.Right)));
+            this.groupBox1.Controls.Add(this.label_terminal_IP);
+            this.groupBox1.Controls.Add(this.comboBox_terminal_select);
+            this.groupBox1.Controls.Add(this.label10);
+            this.groupBox1.Controls.Add(this.tabControl_display);
+            this.groupBox1.Controls.Add(this.checkBox_secondary);
             this.groupBox1.Controls.Add(this.checkBox_Log);
             this.groupBox1.Controls.Add(this.checkBox_debug);
             this.groupBox1.Controls.Add(this.SerialpropertyBox);
             this.groupBox1.Controls.Add(this.checkBox_pause);
             this.groupBox1.Controls.Add(this.checkBox_AutoscrollDown);
-            this.groupBox1.Controls.Add(this.checkBoxHexSend);
             this.groupBox1.Controls.Add(this.groupBox2);
-            this.groupBox1.Controls.Add(this.checkBoxHexView);
             this.groupBox1.Controls.Add(this.button_clearscreen);
-            this.groupBox1.Controls.Add(this.dataDisplayBox);
             this.groupBox1.Location = new System.Drawing.Point(12, 59);
             this.groupBox1.Name = "groupBox1";
-            this.groupBox1.Size = new System.Drawing.Size(854, 385);
+            this.groupBox1.Size = new System.Drawing.Size(854, 413);
             this.groupBox1.TabIndex = 10;
             this.groupBox1.TabStop = false;
             this.groupBox1.Text = "Data Received";
             this.groupBox1.Enter += new System.EventHandler(this.groupBox1_Enter);
             // 
+            // label_terminal_IP
+            // 
+            this.label_terminal_IP.AutoSize = true;
+            this.label_terminal_IP.ForeColor = System.Drawing.Color.Blue;
+            this.label_terminal_IP.Location = new System.Drawing.Point(705, 213);
+            this.label_terminal_IP.Name = "label_terminal_IP";
+            this.label_terminal_IP.Size = new System.Drawing.Size(59, 13);
+            this.label_terminal_IP.TabIndex = 20;
+            this.label_terminal_IP.Text = "terminal_IP";
+            // 
+            // comboBox_terminal_select
+            // 
+            this.comboBox_terminal_select.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
+            this.comboBox_terminal_select.FormattingEnabled = true;
+            this.comboBox_terminal_select.Location = new System.Drawing.Point(769, 185);
+            this.comboBox_terminal_select.Name = "comboBox_terminal_select";
+            this.comboBox_terminal_select.Size = new System.Drawing.Size(78, 21);
+            this.comboBox_terminal_select.TabIndex = 19;
+            // 
+            // label10
+            // 
+            this.label10.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
+            this.label10.AutoSize = true;
+            this.label10.Location = new System.Drawing.Point(705, 188);
+            this.label10.Name = "label10";
+            this.label10.Size = new System.Drawing.Size(46, 13);
+            this.label10.TabIndex = 18;
+            this.label10.Text = "Teiminal";
+            // 
+            // tabControl_display
+            // 
+            this.tabControl_display.Anchor = ((System.Windows.Forms.AnchorStyles)((((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom) 
+            | System.Windows.Forms.AnchorStyles.Left) 
+            | System.Windows.Forms.AnchorStyles.Right)));
+            this.tabControl_display.Controls.Add(this.tab_main_display);
+            this.tabControl_display.Controls.Add(this.tabPage_remote);
+            this.tabControl_display.Location = new System.Drawing.Point(7, 23);
+            this.tabControl_display.Name = "tabControl_display";
+            this.tabControl_display.SelectedIndex = 0;
+            this.tabControl_display.Size = new System.Drawing.Size(685, 377);
+            this.tabControl_display.TabIndex = 17;
+            // 
+            // tab_main_display
+            // 
+            this.tab_main_display.Controls.Add(this.dataDisplayBox);
+            this.tab_main_display.Location = new System.Drawing.Point(4, 22);
+            this.tab_main_display.Name = "tab_main_display";
+            this.tab_main_display.Padding = new System.Windows.Forms.Padding(3);
+            this.tab_main_display.Size = new System.Drawing.Size(677, 351);
+            this.tab_main_display.TabIndex = 1;
+            this.tab_main_display.Text = "Main";
+            this.tab_main_display.UseVisualStyleBackColor = true;
+            // 
+            // dataDisplayBox
+            // 
+            this.dataDisplayBox.AcceptsTab = true;
+            this.dataDisplayBox.Anchor = ((System.Windows.Forms.AnchorStyles)((((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom) 
+            | System.Windows.Forms.AnchorStyles.Left) 
+            | System.Windows.Forms.AnchorStyles.Right)));
+            this.dataDisplayBox.BackColor = System.Drawing.SystemColors.Window;
+            this.dataDisplayBox.ContextMenuStrip = this.cmenu_displayfont;
+            this.dataDisplayBox.ForeColor = System.Drawing.Color.Blue;
+            this.dataDisplayBox.Location = new System.Drawing.Point(6, 6);
+            this.dataDisplayBox.Name = "dataDisplayBox";
+            this.dataDisplayBox.ReadOnly = true;
+            this.dataDisplayBox.ScrollBars = System.Windows.Forms.RichTextBoxScrollBars.Vertical;
+            this.dataDisplayBox.Size = new System.Drawing.Size(665, 339);
+            this.dataDisplayBox.TabIndex = 1;
+            this.dataDisplayBox.Text = "";
+            this.dataDisplayBox.TextChanged += new System.EventHandler(this.dataDisplayBox_TextChanged);
+            this.dataDisplayBox.KeyDown += new System.Windows.Forms.KeyEventHandler(this.dataDisplayBox_KeyDown);
+            // 
+            // cmenu_displayfont
+            // 
+            this.cmenu_displayfont.Items.AddRange(new System.Windows.Forms.ToolStripItem[] {
+            this.backColorSettingToolStripMenuItem,
+            this.foreColorSettingToolStripMenuItem,
+            this.fontToolStripMenuItem});
+            this.cmenu_displayfont.Name = "cmenu_displayfont";
+            this.cmenu_displayfont.Size = new System.Drawing.Size(129, 70);
+            // 
+            // backColorSettingToolStripMenuItem
+            // 
+            this.backColorSettingToolStripMenuItem.Name = "backColorSettingToolStripMenuItem";
+            this.backColorSettingToolStripMenuItem.Size = new System.Drawing.Size(128, 22);
+            this.backColorSettingToolStripMenuItem.Text = "BackColor";
+            this.backColorSettingToolStripMenuItem.Click += new System.EventHandler(this.backColorSettingToolStripMenuItem_Click);
+            // 
+            // foreColorSettingToolStripMenuItem
+            // 
+            this.foreColorSettingToolStripMenuItem.Name = "foreColorSettingToolStripMenuItem";
+            this.foreColorSettingToolStripMenuItem.Size = new System.Drawing.Size(128, 22);
+            this.foreColorSettingToolStripMenuItem.Text = "ForeColor";
+            this.foreColorSettingToolStripMenuItem.Click += new System.EventHandler(this.foreColorSettingToolStripMenuItem_Click);
+            // 
+            // fontToolStripMenuItem
+            // 
+            this.fontToolStripMenuItem.Name = "fontToolStripMenuItem";
+            this.fontToolStripMenuItem.Size = new System.Drawing.Size(128, 22);
+            this.fontToolStripMenuItem.Text = "Font";
+            this.fontToolStripMenuItem.Click += new System.EventHandler(this.fontToolStripMenuItem_Click);
+            // 
+            // tabPage_remote
+            // 
+            this.tabPage_remote.Controls.Add(this.Display_remote);
+            this.tabPage_remote.Location = new System.Drawing.Point(4, 22);
+            this.tabPage_remote.Name = "tabPage_remote";
+            this.tabPage_remote.Padding = new System.Windows.Forms.Padding(3);
+            this.tabPage_remote.Size = new System.Drawing.Size(677, 351);
+            this.tabPage_remote.TabIndex = 2;
+            this.tabPage_remote.Text = "Remote";
+            this.tabPage_remote.UseVisualStyleBackColor = true;
+            // 
+            // Display_remote
+            // 
+            this.Display_remote.AcceptsReturn = true;
+            this.Display_remote.Anchor = ((System.Windows.Forms.AnchorStyles)((((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom) 
+            | System.Windows.Forms.AnchorStyles.Left) 
+            | System.Windows.Forms.AnchorStyles.Right)));
+            this.Display_remote.BackColor = System.Drawing.Color.White;
+            this.Display_remote.Location = new System.Drawing.Point(6, 6);
+            this.Display_remote.Multiline = true;
+            this.Display_remote.Name = "Display_remote";
+            this.Display_remote.ReadOnly = true;
+            this.Display_remote.ScrollBars = System.Windows.Forms.ScrollBars.Vertical;
+            this.Display_remote.Size = new System.Drawing.Size(665, 339);
+            this.Display_remote.TabIndex = 0;
+            // 
+            // checkBox_secondary
+            // 
+            this.checkBox_secondary.AutoSize = true;
+            this.checkBox_secondary.Location = new System.Drawing.Point(134, 0);
+            this.checkBox_secondary.Name = "checkBox_secondary";
+            this.checkBox_secondary.Size = new System.Drawing.Size(77, 17);
+            this.checkBox_secondary.TabIndex = 16;
+            this.checkBox_secondary.Text = "Secondary";
+            this.checkBox_secondary.UseVisualStyleBackColor = true;
+            this.checkBox_secondary.CheckedChanged += new System.EventHandler(this.checkBox_secondary_CheckedChanged);
+            // 
             // checkBox_Log
             // 
             this.checkBox_Log.AutoSize = true;
-            this.checkBox_Log.Location = new System.Drawing.Point(567, 0);
+            this.checkBox_Log.Checked = true;
+            this.checkBox_Log.CheckState = System.Windows.Forms.CheckState.Checked;
+            this.checkBox_Log.Location = new System.Drawing.Point(454, 0);
             this.checkBox_Log.Name = "checkBox_Log";
-            this.checkBox_Log.Size = new System.Drawing.Size(44, 17);
+            this.checkBox_Log.Size = new System.Drawing.Size(108, 17);
             this.checkBox_Log.TabIndex = 15;
-            this.checkBox_Log.Text = "Log";
+            this.checkBox_Log.Text = "Date_tag_in_Log";
             this.checkBox_Log.UseVisualStyleBackColor = true;
             this.checkBox_Log.CheckedChanged += new System.EventHandler(this.checkBox_Log_CheckedChanged);
             // 
             // checkBox_debug
             // 
             this.checkBox_debug.AutoSize = true;
-            this.checkBox_debug.Location = new System.Drawing.Point(503, 0);
+            this.checkBox_debug.Location = new System.Drawing.Point(390, 0);
             this.checkBox_debug.Name = "checkBox_debug";
             this.checkBox_debug.Size = new System.Drawing.Size(58, 17);
             this.checkBox_debug.TabIndex = 15;
@@ -430,7 +671,7 @@
             this.SerialpropertyBox.Controls.Add(this.label3);
             this.SerialpropertyBox.Controls.Add(this.label2);
             this.SerialpropertyBox.Controls.Add(this.label1);
-            this.SerialpropertyBox.Location = new System.Drawing.Point(698, 218);
+            this.SerialpropertyBox.Location = new System.Drawing.Point(698, 246);
             this.SerialpropertyBox.Name = "SerialpropertyBox";
             this.SerialpropertyBox.Size = new System.Drawing.Size(150, 154);
             this.SerialpropertyBox.TabIndex = 14;
@@ -447,28 +688,28 @@
             this.radioC_L2.TabIndex = 16;
             this.radioC_L2.Text = "CR+LF";
             this.radioC_L2.UseVisualStyleBackColor = true;
-            this.radioC_L2.CheckedChanged += new System.EventHandler(this.radioC_L2_CheckedChanged);
+            this.radioC_L2.CheckedChanged += new System.EventHandler(this.radio_CR2_CheckedChanged);
             // 
             // radio_LF2
             // 
             this.radio_LF2.AutoSize = true;
+            this.radio_LF2.Checked = true;
             this.radio_LF2.Location = new System.Drawing.Point(51, 124);
             this.radio_LF2.Name = "radio_LF2";
             this.radio_LF2.Size = new System.Drawing.Size(37, 17);
             this.radio_LF2.TabIndex = 15;
+            this.radio_LF2.TabStop = true;
             this.radio_LF2.Text = "LF";
             this.radio_LF2.UseVisualStyleBackColor = true;
-            this.radio_LF2.CheckedChanged += new System.EventHandler(this.radio_LF2_CheckedChanged);
+            this.radio_LF2.CheckedChanged += new System.EventHandler(this.radio_CR2_CheckedChanged);
             // 
             // radio_CR2
             // 
             this.radio_CR2.AutoSize = true;
-            this.radio_CR2.Checked = true;
             this.radio_CR2.Location = new System.Drawing.Point(5, 124);
             this.radio_CR2.Name = "radio_CR2";
             this.radio_CR2.Size = new System.Drawing.Size(40, 17);
             this.radio_CR2.TabIndex = 14;
-            this.radio_CR2.TabStop = true;
             this.radio_CR2.Text = "CR";
             this.radio_CR2.UseVisualStyleBackColor = true;
             this.radio_CR2.CheckedChanged += new System.EventHandler(this.radio_CR2_CheckedChanged);
@@ -576,7 +817,7 @@
             // checkBox_pause
             // 
             this.checkBox_pause.AutoSize = true;
-            this.checkBox_pause.Location = new System.Drawing.Point(441, 0);
+            this.checkBox_pause.Location = new System.Drawing.Point(328, 0);
             this.checkBox_pause.Name = "checkBox_pause";
             this.checkBox_pause.Size = new System.Drawing.Size(56, 17);
             this.checkBox_pause.TabIndex = 13;
@@ -588,23 +829,12 @@
             this.checkBox_AutoscrollDown.AutoSize = true;
             this.checkBox_AutoscrollDown.Checked = true;
             this.checkBox_AutoscrollDown.CheckState = System.Windows.Forms.CheckState.Checked;
-            this.checkBox_AutoscrollDown.Location = new System.Drawing.Point(330, 0);
+            this.checkBox_AutoscrollDown.Location = new System.Drawing.Point(217, 0);
             this.checkBox_AutoscrollDown.Name = "checkBox_AutoscrollDown";
             this.checkBox_AutoscrollDown.Size = new System.Drawing.Size(105, 17);
             this.checkBox_AutoscrollDown.TabIndex = 12;
             this.checkBox_AutoscrollDown.Text = "Auto ScrollDown";
             this.checkBox_AutoscrollDown.UseVisualStyleBackColor = true;
-            // 
-            // checkBoxHexSend
-            // 
-            this.checkBoxHexSend.AutoSize = true;
-            this.checkBoxHexSend.Location = new System.Drawing.Point(251, 0);
-            this.checkBoxHexSend.Name = "checkBoxHexSend";
-            this.checkBoxHexSend.Size = new System.Drawing.Size(73, 17);
-            this.checkBoxHexSend.TabIndex = 11;
-            this.checkBoxHexSend.Text = "Hex Send";
-            this.checkBoxHexSend.UseVisualStyleBackColor = true;
-            this.checkBoxHexSend.Visible = false;
             // 
             // groupBox2
             // 
@@ -616,8 +846,10 @@
             this.groupBox2.Controls.Add(this.tag_rfbox2);
             this.groupBox2.Controls.Add(this.tag_rfbox1);
             this.groupBox2.Controls.Add(this.tag_sg2);
+            this.groupBox2.Controls.Add(this.checkBoxHexSend);
             this.groupBox2.Controls.Add(this.tag_sg1);
             this.groupBox2.Controls.Add(this.tag_sa);
+            this.groupBox2.Controls.Add(this.checkBoxHexView);
             this.groupBox2.Location = new System.Drawing.Point(698, 19);
             this.groupBox2.Name = "groupBox2";
             this.groupBox2.Size = new System.Drawing.Size(150, 162);
@@ -630,7 +862,7 @@
             this.tag_DC5767A.AutoSize = true;
             this.tag_DC5767A.BackColor = System.Drawing.Color.Pink;
             this.tag_DC5767A.BorderStyle = System.Windows.Forms.BorderStyle.FixedSingle;
-            this.tag_DC5767A.Location = new System.Drawing.Point(7, 125);
+            this.tag_DC5767A.Location = new System.Drawing.Point(9, 122);
             this.tag_DC5767A.Name = "tag_DC5767A";
             this.tag_DC5767A.Size = new System.Drawing.Size(55, 15);
             this.tag_DC5767A.TabIndex = 8;
@@ -642,22 +874,22 @@
             this.tag_rumaster.AutoSize = true;
             this.tag_rumaster.BackColor = System.Drawing.Color.Pink;
             this.tag_rumaster.BorderStyle = System.Windows.Forms.BorderStyle.FixedSingle;
-            this.tag_rumaster.Location = new System.Drawing.Point(7, 140);
+            this.tag_rumaster.Location = new System.Drawing.Point(9, 137);
             this.tag_rumaster.Name = "tag_rumaster";
-            this.tag_rumaster.Size = new System.Drawing.Size(55, 15);
+            this.tag_rumaster.Size = new System.Drawing.Size(30, 15);
             this.tag_rumaster.TabIndex = 7;
-            this.tag_rumaster.Text = "RuMaster";
+            this.tag_rumaster.Text = "TCA";
             // 
             // tag_is2
             // 
             this.tag_is2.AutoSize = true;
             this.tag_is2.BackColor = System.Drawing.Color.Pink;
             this.tag_is2.BorderStyle = System.Windows.Forms.BorderStyle.FixedSingle;
-            this.tag_is2.Location = new System.Drawing.Point(7, 110);
+            this.tag_is2.Location = new System.Drawing.Point(9, 107);
             this.tag_is2.Name = "tag_is2";
-            this.tag_is2.Size = new System.Drawing.Size(120, 15);
+            this.tag_is2.Size = new System.Drawing.Size(33, 15);
             this.tag_is2.TabIndex = 6;
-            this.tag_is2.Text = "Interreference_signal_2";
+            this.tag_is2.Text = "ISG2";
             this.tag_is2.Click += new System.EventHandler(this.tag_is2_Click);
             // 
             // tag_is1
@@ -665,11 +897,11 @@
             this.tag_is1.AutoSize = true;
             this.tag_is1.BackColor = System.Drawing.Color.Pink;
             this.tag_is1.BorderStyle = System.Windows.Forms.BorderStyle.FixedSingle;
-            this.tag_is1.Location = new System.Drawing.Point(7, 95);
+            this.tag_is1.Location = new System.Drawing.Point(9, 92);
             this.tag_is1.Name = "tag_is1";
-            this.tag_is1.Size = new System.Drawing.Size(120, 15);
+            this.tag_is1.Size = new System.Drawing.Size(33, 15);
             this.tag_is1.TabIndex = 5;
-            this.tag_is1.Text = "Interreference_signal_1";
+            this.tag_is1.Text = "ISG1";
             this.tag_is1.Click += new System.EventHandler(this.tag_is1_Click);
             // 
             // tag_rfbox2
@@ -677,7 +909,7 @@
             this.tag_rfbox2.AutoSize = true;
             this.tag_rfbox2.BackColor = System.Drawing.Color.Pink;
             this.tag_rfbox2.BorderStyle = System.Windows.Forms.BorderStyle.FixedSingle;
-            this.tag_rfbox2.Location = new System.Drawing.Point(7, 80);
+            this.tag_rfbox2.Location = new System.Drawing.Point(9, 77);
             this.tag_rfbox2.Name = "tag_rfbox2";
             this.tag_rfbox2.Size = new System.Drawing.Size(44, 15);
             this.tag_rfbox2.TabIndex = 4;
@@ -689,7 +921,7 @@
             this.tag_rfbox1.AutoSize = true;
             this.tag_rfbox1.BackColor = System.Drawing.Color.Pink;
             this.tag_rfbox1.BorderStyle = System.Windows.Forms.BorderStyle.FixedSingle;
-            this.tag_rfbox1.Location = new System.Drawing.Point(7, 65);
+            this.tag_rfbox1.Location = new System.Drawing.Point(9, 62);
             this.tag_rfbox1.Name = "tag_rfbox1";
             this.tag_rfbox1.Size = new System.Drawing.Size(44, 15);
             this.tag_rfbox1.TabIndex = 3;
@@ -701,23 +933,34 @@
             this.tag_sg2.AutoSize = true;
             this.tag_sg2.BackColor = System.Drawing.Color.Pink;
             this.tag_sg2.BorderStyle = System.Windows.Forms.BorderStyle.FixedSingle;
-            this.tag_sg2.Location = new System.Drawing.Point(7, 50);
+            this.tag_sg2.Location = new System.Drawing.Point(9, 47);
             this.tag_sg2.Name = "tag_sg2";
-            this.tag_sg2.Size = new System.Drawing.Size(91, 15);
+            this.tag_sg2.Size = new System.Drawing.Size(30, 15);
             this.tag_sg2.TabIndex = 2;
-            this.tag_sg2.Text = "SignalGenerator2";
+            this.tag_sg2.Text = "SG2";
             this.tag_sg2.Click += new System.EventHandler(this.tag_sg2_Click);
+            // 
+            // checkBoxHexSend
+            // 
+            this.checkBoxHexSend.AutoSize = true;
+            this.checkBoxHexSend.Location = new System.Drawing.Point(79, 42);
+            this.checkBoxHexSend.Name = "checkBoxHexSend";
+            this.checkBoxHexSend.Size = new System.Drawing.Size(73, 17);
+            this.checkBoxHexSend.TabIndex = 11;
+            this.checkBoxHexSend.Text = "Hex Send";
+            this.checkBoxHexSend.UseVisualStyleBackColor = true;
+            this.checkBoxHexSend.Visible = false;
             // 
             // tag_sg1
             // 
             this.tag_sg1.AutoSize = true;
             this.tag_sg1.BackColor = System.Drawing.Color.Pink;
             this.tag_sg1.BorderStyle = System.Windows.Forms.BorderStyle.FixedSingle;
-            this.tag_sg1.Location = new System.Drawing.Point(7, 35);
+            this.tag_sg1.Location = new System.Drawing.Point(9, 32);
             this.tag_sg1.Name = "tag_sg1";
-            this.tag_sg1.Size = new System.Drawing.Size(91, 15);
+            this.tag_sg1.Size = new System.Drawing.Size(30, 15);
             this.tag_sg1.TabIndex = 1;
-            this.tag_sg1.Text = "SignalGenerator1";
+            this.tag_sg1.Text = "SG1";
             this.tag_sg1.Click += new System.EventHandler(this.tag_sg1_Click);
             // 
             // tag_sa
@@ -725,17 +968,17 @@
             this.tag_sa.AutoSize = true;
             this.tag_sa.BackColor = System.Drawing.Color.Pink;
             this.tag_sa.BorderStyle = System.Windows.Forms.BorderStyle.FixedSingle;
-            this.tag_sa.Location = new System.Drawing.Point(7, 20);
+            this.tag_sa.Location = new System.Drawing.Point(9, 16);
             this.tag_sa.Name = "tag_sa";
-            this.tag_sa.Size = new System.Drawing.Size(84, 15);
+            this.tag_sa.Size = new System.Drawing.Size(23, 15);
             this.tag_sa.TabIndex = 0;
-            this.tag_sa.Text = "SignalAnalayzer";
+            this.tag_sa.Text = "SA";
             this.tag_sa.Click += new System.EventHandler(this.tag_sa_Click);
             // 
             // checkBoxHexView
             // 
             this.checkBoxHexView.AutoSize = true;
-            this.checkBoxHexView.Location = new System.Drawing.Point(175, 0);
+            this.checkBoxHexView.Location = new System.Drawing.Point(79, 19);
             this.checkBoxHexView.Name = "checkBoxHexView";
             this.checkBoxHexView.Size = new System.Drawing.Size(70, 17);
             this.checkBoxHexView.TabIndex = 3;
@@ -746,7 +989,7 @@
             // button_clearscreen
             // 
             this.button_clearscreen.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
-            this.button_clearscreen.Location = new System.Drawing.Point(650, 0);
+            this.button_clearscreen.Location = new System.Drawing.Point(637, 0);
             this.button_clearscreen.Name = "button_clearscreen";
             this.button_clearscreen.Size = new System.Drawing.Size(55, 20);
             this.button_clearscreen.TabIndex = 1;
@@ -754,55 +997,6 @@
             this.toolTip1.SetToolTip(this.button_clearscreen, "Clear Screen");
             this.button_clearscreen.UseVisualStyleBackColor = true;
             this.button_clearscreen.Click += new System.EventHandler(this.button_clearscreen_Click);
-            // 
-            // dataDisplayBox
-            // 
-            this.dataDisplayBox.AcceptsTab = true;
-            this.dataDisplayBox.Anchor = ((System.Windows.Forms.AnchorStyles)((((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom) 
-            | System.Windows.Forms.AnchorStyles.Left) 
-            | System.Windows.Forms.AnchorStyles.Right)));
-            this.dataDisplayBox.BackColor = System.Drawing.SystemColors.Window;
-            this.dataDisplayBox.ContextMenuStrip = this.cmenu_displayfont;
-            this.dataDisplayBox.ForeColor = System.Drawing.Color.Blue;
-            this.dataDisplayBox.Location = new System.Drawing.Point(7, 23);
-            this.dataDisplayBox.Name = "dataDisplayBox";
-            this.dataDisplayBox.ReadOnly = true;
-            this.dataDisplayBox.ScrollBars = System.Windows.Forms.RichTextBoxScrollBars.Vertical;
-            this.dataDisplayBox.Size = new System.Drawing.Size(685, 349);
-            this.dataDisplayBox.TabIndex = 1;
-            this.dataDisplayBox.Text = "";
-            this.dataDisplayBox.TextChanged += new System.EventHandler(this.dataDisplayBox_TextChanged);
-            this.dataDisplayBox.KeyDown += new System.Windows.Forms.KeyEventHandler(this.dataDisplayBox_KeyDown);
-            // 
-            // cmenu_displayfont
-            // 
-            this.cmenu_displayfont.Items.AddRange(new System.Windows.Forms.ToolStripItem[] {
-            this.backColorSettingToolStripMenuItem,
-            this.foreColorSettingToolStripMenuItem,
-            this.fontToolStripMenuItem});
-            this.cmenu_displayfont.Name = "cmenu_displayfont";
-            this.cmenu_displayfont.Size = new System.Drawing.Size(129, 70);
-            // 
-            // backColorSettingToolStripMenuItem
-            // 
-            this.backColorSettingToolStripMenuItem.Name = "backColorSettingToolStripMenuItem";
-            this.backColorSettingToolStripMenuItem.Size = new System.Drawing.Size(128, 22);
-            this.backColorSettingToolStripMenuItem.Text = "BackColor";
-            this.backColorSettingToolStripMenuItem.Click += new System.EventHandler(this.backColorSettingToolStripMenuItem_Click);
-            // 
-            // foreColorSettingToolStripMenuItem
-            // 
-            this.foreColorSettingToolStripMenuItem.Name = "foreColorSettingToolStripMenuItem";
-            this.foreColorSettingToolStripMenuItem.Size = new System.Drawing.Size(128, 22);
-            this.foreColorSettingToolStripMenuItem.Text = "ForeColor";
-            this.foreColorSettingToolStripMenuItem.Click += new System.EventHandler(this.foreColorSettingToolStripMenuItem_Click);
-            // 
-            // fontToolStripMenuItem
-            // 
-            this.fontToolStripMenuItem.Name = "fontToolStripMenuItem";
-            this.fontToolStripMenuItem.Size = new System.Drawing.Size(128, 22);
-            this.fontToolStripMenuItem.Text = "Font";
-            this.fontToolStripMenuItem.Click += new System.EventHandler(this.fontToolStripMenuItem_Click);
             // 
             // InputArea
             // 
@@ -815,9 +1009,9 @@
             this.InputArea.Controls.Add(this.tabControl1);
             this.InputArea.Controls.Add(this.button_load);
             this.InputArea.Controls.Add(this.button_lock);
-            this.InputArea.Location = new System.Drawing.Point(13, 450);
+            this.InputArea.Location = new System.Drawing.Point(13, 478);
             this.InputArea.Name = "InputArea";
-            this.InputArea.Size = new System.Drawing.Size(853, 239);
+            this.InputArea.Size = new System.Drawing.Size(853, 211);
             this.InputArea.TabIndex = 12;
             this.InputArea.TabStop = false;
             this.InputArea.Text = "InputArea";
@@ -825,7 +1019,7 @@
             // button_sendcommand
             // 
             this.button_sendcommand.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
-            this.button_sendcommand.Location = new System.Drawing.Point(717, 19);
+            this.button_sendcommand.Location = new System.Drawing.Point(717, 17);
             this.button_sendcommand.Name = "button_sendcommand";
             this.button_sendcommand.Size = new System.Drawing.Size(100, 25);
             this.button_sendcommand.TabIndex = 10;
@@ -840,7 +1034,7 @@
             this.tabControl1.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Left) 
             | System.Windows.Forms.AnchorStyles.Right)));
             this.tabControl1.ContextMenuStrip = this.cmmenu_tab;
-            this.tabControl1.Location = new System.Drawing.Point(6, 77);
+            this.tabControl1.Location = new System.Drawing.Point(6, 49);
             this.tabControl1.Name = "tabControl1";
             this.tabControl1.SelectedIndex = 0;
             this.tabControl1.Size = new System.Drawing.Size(698, 156);
@@ -898,33 +1092,92 @@
             this.historyBox.SelectedIndexChanged += new System.EventHandler(this.historyBox_SelectedIndexChanged);
             this.historyBox.MouseDoubleClick += new System.Windows.Forms.MouseEventHandler(this.historyBox_MouseDoubleClick);
             // 
-            // groupBox3
+            // groupBox_script
             // 
-            this.groupBox3.Controls.Add(this.button_executepy);
-            this.groupBox3.Location = new System.Drawing.Point(878, 469);
-            this.groupBox3.Name = "groupBox3";
-            this.groupBox3.Size = new System.Drawing.Size(187, 100);
-            this.groupBox3.TabIndex = 14;
-            this.groupBox3.TabStop = false;
-            this.groupBox3.Text = "groupBox3";
-            this.groupBox3.Visible = false;
+            this.groupBox_script.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Right)));
+            this.groupBox_script.Controls.Add(this.textBox_interval);
+            this.groupBox_script.Controls.Add(this.label9);
+            this.groupBox_script.Controls.Add(this.button_stop);
+            this.groupBox_script.Controls.Add(this.button_start);
+            this.groupBox_script.Controls.Add(this.label8);
+            this.groupBox_script.Controls.Add(this.label7);
+            this.groupBox_script.Controls.Add(this.textBox_rpt);
+            this.groupBox_script.Controls.Add(this.textBox_cmd);
+            this.groupBox_script.Location = new System.Drawing.Point(872, 465);
+            this.groupBox_script.Name = "groupBox_script";
+            this.groupBox_script.Size = new System.Drawing.Size(193, 224);
+            this.groupBox_script.TabIndex = 14;
+            this.groupBox_script.TabStop = false;
+            this.groupBox_script.Text = "Script";
             // 
-            // button_executepy
+            // textBox_interval
             // 
-            this.button_executepy.Location = new System.Drawing.Point(6, 19);
-            this.button_executepy.Name = "button_executepy";
-            this.button_executepy.Size = new System.Drawing.Size(95, 23);
-            this.button_executepy.TabIndex = 0;
-            this.button_executepy.Text = "execute pyscript";
-            this.button_executepy.UseVisualStyleBackColor = true;
-            this.button_executepy.Click += new System.EventHandler(this.button_executepy_Click);
+            this.textBox_interval.Location = new System.Drawing.Point(81, 71);
+            this.textBox_interval.Name = "textBox_interval";
+            this.textBox_interval.Size = new System.Drawing.Size(100, 20);
+            this.textBox_interval.TabIndex = 7;
             // 
-            // upgradeToolStripMenuItem
+            // label9
             // 
-            this.upgradeToolStripMenuItem.Name = "upgradeToolStripMenuItem";
-            this.upgradeToolStripMenuItem.Size = new System.Drawing.Size(152, 22);
-            this.upgradeToolStripMenuItem.Text = "Upgrade";
-            this.upgradeToolStripMenuItem.Click += new System.EventHandler(this.upgradeToolStripMenuItem_Click);
+            this.label9.AutoSize = true;
+            this.label9.Location = new System.Drawing.Point(6, 74);
+            this.label9.Name = "label9";
+            this.label9.Size = new System.Drawing.Size(61, 13);
+            this.label9.TabIndex = 6;
+            this.label9.Text = "Interval(ms)";
+            // 
+            // button_stop
+            // 
+            this.button_stop.Location = new System.Drawing.Point(106, 119);
+            this.button_stop.Name = "button_stop";
+            this.button_stop.Size = new System.Drawing.Size(75, 23);
+            this.button_stop.TabIndex = 5;
+            this.button_stop.Text = "Stop";
+            this.button_stop.UseVisualStyleBackColor = true;
+            this.button_stop.Click += new System.EventHandler(this.button_stop_Click);
+            // 
+            // button_start
+            // 
+            this.button_start.Location = new System.Drawing.Point(6, 119);
+            this.button_start.Name = "button_start";
+            this.button_start.Size = new System.Drawing.Size(75, 23);
+            this.button_start.TabIndex = 4;
+            this.button_start.Text = "Start";
+            this.button_start.UseVisualStyleBackColor = true;
+            this.button_start.Click += new System.EventHandler(this.button_start_Click);
+            // 
+            // label8
+            // 
+            this.label8.AutoSize = true;
+            this.label8.Location = new System.Drawing.Point(6, 48);
+            this.label8.Name = "label8";
+            this.label8.Size = new System.Drawing.Size(42, 13);
+            this.label8.TabIndex = 3;
+            this.label8.Text = "Repeat";
+            // 
+            // label7
+            // 
+            this.label7.AutoSize = true;
+            this.label7.Location = new System.Drawing.Point(6, 22);
+            this.label7.Name = "label7";
+            this.label7.Size = new System.Drawing.Size(54, 13);
+            this.label7.TabIndex = 2;
+            this.label7.Text = "Command";
+            // 
+            // textBox_rpt
+            // 
+            this.textBox_rpt.Location = new System.Drawing.Point(81, 45);
+            this.textBox_rpt.Name = "textBox_rpt";
+            this.textBox_rpt.Size = new System.Drawing.Size(100, 20);
+            this.textBox_rpt.TabIndex = 1;
+            // 
+            // textBox_cmd
+            // 
+            this.textBox_cmd.Location = new System.Drawing.Point(81, 19);
+            this.textBox_cmd.Multiline = true;
+            this.textBox_cmd.Name = "textBox_cmd";
+            this.textBox_cmd.Size = new System.Drawing.Size(100, 20);
+            this.textBox_cmd.TabIndex = 0;
             // 
             // MainForm
             // 
@@ -932,7 +1185,7 @@
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.ClientSize = new System.Drawing.Size(1077, 714);
-            this.Controls.Add(this.groupBox3);
+            this.Controls.Add(this.groupBox_script);
             this.Controls.Add(this.groupBox4);
             this.Controls.Add(this.InputArea);
             this.Controls.Add(this.groupBox1);
@@ -953,16 +1206,21 @@
             this.statusStrip1.PerformLayout();
             this.groupBox1.ResumeLayout(false);
             this.groupBox1.PerformLayout();
+            this.tabControl_display.ResumeLayout(false);
+            this.tab_main_display.ResumeLayout(false);
+            this.cmenu_displayfont.ResumeLayout(false);
+            this.tabPage_remote.ResumeLayout(false);
+            this.tabPage_remote.PerformLayout();
             this.SerialpropertyBox.ResumeLayout(false);
             this.SerialpropertyBox.PerformLayout();
             this.groupBox2.ResumeLayout(false);
             this.groupBox2.PerformLayout();
-            this.cmenu_displayfont.ResumeLayout(false);
             this.InputArea.ResumeLayout(false);
             this.InputArea.PerformLayout();
             this.cmmenu_tab.ResumeLayout(false);
             this.groupBox4.ResumeLayout(false);
-            this.groupBox3.ResumeLayout(false);
+            this.groupBox_script.ResumeLayout(false);
+            this.groupBox_script.PerformLayout();
             this.ResumeLayout(false);
             this.PerformLayout();
 
@@ -1000,7 +1258,7 @@
         private System.Windows.Forms.CheckBox checkBoxHexView;
         private System.Windows.Forms.CheckBox checkBox_AutoscrollDown;
         private System.Windows.Forms.ToolTip toolTip1;
-        private System.Windows.Forms.ToolStripMenuItem menuSetup;
+        private System.Windows.Forms.ToolStripMenuItem item_serial_device;
         private System.Windows.Forms.Label tag_rfbox2;
         private System.Windows.Forms.Label tag_rfbox1;
         private System.Windows.Forms.Label tag_sg2;
@@ -1038,14 +1296,36 @@
         private System.Windows.Forms.ToolStripMenuItem visaSwitchToolStripMenuItem;
         private System.Windows.Forms.ToolStripMenuItem measureMentToolStripMenuItem;
         private System.Windows.Forms.ToolStripMenuItem rXEVMToolStripMenuItem;
-        private System.Windows.Forms.GroupBox groupBox3;
-        private System.Windows.Forms.Button button_executepy;
+        private System.Windows.Forms.GroupBox groupBox_script;
         private System.Windows.Forms.RadioButton radioC_L2;
         private System.Windows.Forms.RadioButton radio_LF2;
         private System.Windows.Forms.RadioButton radio_CR2;
         private System.Windows.Forms.CheckBox checkBox_Log;
         private System.Windows.Forms.CheckBox checkBox_debug;
         private System.Windows.Forms.ToolStripMenuItem upgradeToolStripMenuItem;
+        private System.Windows.Forms.Button button_stop;
+        private System.Windows.Forms.Button button_start;
+        private System.Windows.Forms.Label label8;
+        private System.Windows.Forms.Label label7;
+        private System.Windows.Forms.TextBox textBox_rpt;
+        private System.Windows.Forms.TextBox textBox_cmd;
+        private System.Windows.Forms.TextBox textBox_interval;
+        private System.Windows.Forms.Label label9;
+        private System.Windows.Forms.CheckBox checkBox_secondary;
+        private System.Windows.Forms.ToolStripButton serial2_pow_on;
+        private System.Windows.Forms.ToolStripButton serial2_pow_off;
+        private System.Windows.Forms.ToolStripMenuItem sensitivityToolStripMenuItem;
+        private System.Windows.Forms.ToolStripMenuItem visaDeviceToolStripMenuItem;
+        private System.Windows.Forms.ToolStripMenuItem otherDeviceToolStripMenuItem;
+        private System.Windows.Forms.TabControl tabControl_display;
+        private System.Windows.Forms.TabPage tab_main_display;
+        private System.Windows.Forms.ComboBox comboBox_terminal_select;
+        private System.Windows.Forms.Label label10;
+        private System.Windows.Forms.TabPage tabPage_remote;
+        private System.Windows.Forms.TextBox Display_remote;
+        private System.Windows.Forms.Label label_terminal_IP;
+        private System.Windows.Forms.ToolStripButton toolStripButton_telnet;
+        private System.Windows.Forms.ToolStripButton toolStripButton_capture2;
     }
 }
 

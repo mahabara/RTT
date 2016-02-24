@@ -28,11 +28,44 @@ using Microsoft.Scripting;
 using System.Web;
 using System.Web.Services;
 using System.Diagnostics;
+using System.Collections;
 
 namespace RTT
 {
     public partial class MainForm : Form
     {
+        Tcpclient du = null;
+        Telnet t = null;
+        //path
+        string localpath = Application.StartupPath;
+        const string mainpath = @"c:\RTT\";
+        string logPath = mainpath + @"log\";
+        
+        string _snapPath = mainpath + @"snapshot\";
+        string _rxevmPath = mainpath + @"rxevm\";
+        string backuppath = @".\backup\";
+        string updatePath = @".\update\";
+
+        //cmd process queue
+        bool cmdProcessThread_run = false;
+        Queue cmdQueue = new Queue();
+        Thread _cmdProcessThread;
+        object cmdQueuelock = new object();
+        EventWaitHandle _waitcmdQueueEventHandle = new AutoResetEvent(false);
+        cmdQueueEventSender cqEventSender = new cmdQueueEventSender();
+
+        //script
+        Thread _scriptthread;
+        bool script_run = false;
+        int script_repeat_times = -1;
+        string scrip_cmd = "null";
+        int script_interval = 0;
+
+        //sa capture
+        Thread _saCapturethread;
+        string captureName;
+        int captureDelay;
+
         //
         char SPACER_FLAG_FIR = '#'; //字符串分割符，用于socete字符串传输第一层分割
         char SPACER_FLAG_SEC = '|'; //字符串分割符，用于socete字符串传输第二层分割
@@ -44,12 +77,14 @@ namespace RTT
         //serialport
         SerialPort _COM_RRU = new SerialPort();
         SerialPort _COM2 = new SerialPort();
-        string _com2trans = "\r";
+        string _com2trans = "\n";
         //bool waitingForreceive = false;
 
         //ts cmd execute flag
         int _rrusend = 0;
         int _rruresp = 0;
+
+
 
         //lock
         private Object _lock_RRUCOM = new Object();
@@ -57,13 +92,14 @@ namespace RTT
         private Object _lock_Instrument = new Object();
 
         //socket
-        IPEndPoint ipep = new IPEndPoint(IPAddress.Any, 8001);//定义一网络端点
+        IPEndPoint ipep;//定义一网络端点
         Socket newsock;//定义一个Socket
         const string socketNoresult = "RTT-ACK";
         const string socketNorru = "RRU is not connected.";
         const string socketNoserial2 = "Serial2 is not connected.";
 
         //rumaster
+        bool _TCA_ON = false;
         ApplicationControl tas;
         TslControlClient tsl;
         IRumaControlClient rumaClient;
@@ -71,6 +107,8 @@ namespace RTT
         Tiger.Ruma.IRumaCarrierConfig rCarrierConfig;
         Tiger.Ruma.IRumaCpriConfig rCpriConfig;
         Tiger.Ruma.IRumaServerBase rServerBase;
+        Tiger.Ruma.IRumaTriggerConfig rTriggerConfig;
+        Tiger.Ruma.IRULoader rIRULoader;
         string _cpriport;
         string[] selectedCpriPorts = new string[] { "1A", "1B" };
 
@@ -175,11 +213,32 @@ namespace RTT
             {"Carrier", FlowDataMode.Carrier},
             {"RAW", FlowDataMode.RAW}
         };
+        private static readonly Dictionary<string, ClockInstanceName> clockInstanceNameDic = new Dictionary<string, ClockInstanceName>
+        {
+            {"CLK_122_0", ClockInstanceName.CLK_122_0},
+            {"CLK_122_180", ClockInstanceName.CLK_122_180}
+        };
+        private static readonly Dictionary<string, CpriTrigSource> cpriTrigSourceDic = new Dictionary<string, CpriTrigSource>
+        {
+            {"CPC", CpriTrigSource.CPC},
+            {"CTT", CpriTrigSource.CTT},
+            {"DYNAMIC_GAIN", CpriTrigSource.DYNAMIC_GAIN},
+            {"FSINFO_CHANGED", CpriTrigSource.FSINFO_CHANGED},
+            {"RXK285", CpriTrigSource.RXK285},
+            {"TXK285", CpriTrigSource.TXK285}
+        };
+        private static readonly Dictionary<string, TriggerStaticOutputLevel> triggerStaticOutputLevelDic = new Dictionary<string, TriggerStaticOutputLevel>
+        {
+            {"high", TriggerStaticOutputLevel.high},
+            {"low", TriggerStaticOutputLevel.low}
+        };
+
+        
         //visa
         bool VisaSwitch = true;//true ==visa32
         
         int sesnSA = -1, sesnSG = -1, sesnSG2 = -1, sesnRFBOX = -1, sesnRFBOX2 = -1, sesnIS = -1, sesnIS2 = -1, sesnDC5767A = -1;
-        int viSA, viSG, viSG2, viRFBOX, viRFBOX2, viIS, viIS2, viDC5767A;
+        int viSA, viSG, viSG2, viRFBOX, viRFBOX2, viIS, viIS2, viDC5767A, viCapture1, viCapture2;
 
         //resourcemanager
         
@@ -211,6 +270,8 @@ namespace RTT
         private Ivi.Visa.Interop.IMessage is_sesn;
         private Ivi.Visa.Interop.IMessage is2_sesn;
         private Ivi.Visa.Interop.IMessage dc5767a_sesn;
+        private Ivi.Visa.Interop.IMessage sesnCapture1;
+        private Ivi.Visa.Interop.IMessage sesnCapture2;
 
 
         //backcolor
@@ -268,15 +329,12 @@ namespace RTT
         //use in button execute
         static List<string> _buttoncmd = new List<string>();
         Thread _buttoncmdthread;
+
         //use in ts execute
         static List<string> _tscmd = new List<string>();
         Thread _tsthread;
 
-        //path
-        const string _snapPath = @"c:\RTT\snapshot\";
-        const string _rxevmPath = @"c:\RTT\rxevm\";
-        const string backuppath = @".\backup\";
-        const string updatePath = @".\update\";
+        
 
         //textline
         int _textline = 0;
@@ -299,7 +357,7 @@ namespace RTT
                 
 
             }
-            string localpath = Application.StartupPath;
+            
             string filepath = localpath +@"\default.ts";
             if(File.Exists(filepath))
             {
@@ -391,10 +449,14 @@ namespace RTT
                     ctl.Text = this.addr.Baudrate_com2;
                 }
             }
+
+            //ipep
+            ipep = new IPEndPoint(IPAddress.Any, int.Parse(this.addr.Server_Port));
+
             //log
             LogManager.LogFielPrefix = "RTT ";
             //string logPath = System.Environment.CurrentDirectory + @"\log\";
-            string logPath = @"c:\RTT\log\";
+            
             if (!Directory.Exists(logPath))
                 Directory.CreateDirectory(logPath);
             LogManager.LogPath = logPath;
@@ -418,9 +480,17 @@ namespace RTT
             if (!Directory.Exists(_rxevmPath))
                 Directory.CreateDirectory(_rxevmPath);
 
+            //cmd queue process thread
+            cmdProcessThread_run = true;
+            _cmdProcessThread = new Thread(new ThreadStart(cmdProcessThread));
+            _cmdProcessThread.Start();
+            
+            //cqEventSender.QueueChanged += new cmdQueueEventSender.QueueChangHandler(cmdProcessThread);
+
             this.Text = "RTT v" + Assembly.GetExecutingAssembly().GetName().Version.ToString();
+            this.label_terminal_IP.Text = this.addr.DU_IP;
             this.Show();
-            this.InputBox.Focus();
+            //this.InputBox.Focus();
             
         }
 
@@ -617,88 +687,57 @@ namespace RTT
             //rru serialport open ,and listen to datareceive
             if (this.rruConnButton.Checked == false)
             {
-                //判断串口是否初始化
-                //if (this._COM_RRU == null)
-                //{
-                    //初始化串口，如果未设置串口则弹出对话框提示用户先设置串口
-                    if (this.addr.RRU == "")
-                    {
-                        WriteTraceText("Please setup serial port first!");
-                        
-                    }
-                    else
-                    {
-                        //设定port,波特率,无检验位，8个数据位，1个停止位
-                        this._COM_RRU = new SerialPort(this.addr.RRU, int.Parse(this.addr.Baudrate_rru), Parity.None, 8, StopBits.One);
-                        this._COM_RRU.ReadBufferSize = 2048;
-                        this._COM_RRU.ReceivedBytesThreshold = 1;
-                        this._COM_RRU.NewLine = "\n";
-                        this._COM_RRU.DtrEnable = true;
-                        this._COM_RRU.RtsEnable = true;
-                        this._COM_RRU.ReadTimeout = 3000;
-                        this._COM_RRU.WriteTimeout = 3000;
-                        
-
-                    //open serial port
-
-                    try
-                        {
-                                
-                            this._COM_RRU.Open();
-                            this._COM_RRU.DataReceived += Com_rru_DataReceived;
-                            this._COM_RRU.ErrorReceived += Com_rru_ErrorReceived;
-                            WriteTraceText("rru serialport open ,and listen to datareceive.");
-                            
-                            this.rruConnButton.CheckState = CheckState.Checked;
-                        }
-                        catch (Exception ex)
-                        {
-                            this._COM_RRU = null;
-                            //现实异常信息给客户。  
-                            WriteErrorText("serial port rru open failed: "+ex.Message);
-                        }
-                        
-                    }
-                    
-
-
-               // }
-
-                //open serial port
-               /* else if (this._COM_RRU.IsOpen != true)
+                //初始化串口，如果未设置串口则弹出对话框提示用户先设置串口
+                if (this.addr.RRU == "")
                 {
+                    WriteTraceText("Please setup serial port first!");                     
+                }
+                else
+                {
+                    //设定port,波特率,无检验位，8个数据位，1个停止位
+                    this._COM_RRU = new SerialPort(this.addr.RRU, int.Parse(this.addr.Baudrate_rru), Parity.None, 8, StopBits.One);
+                    this._COM_RRU.ReadBufferSize = 2048;
+                    this._COM_RRU.ReceivedBytesThreshold = 1;
+                    this._COM_RRU.NewLine = "\n";
+                    this._COM_RRU.DtrEnable = true;
+                    this._COM_RRU.RtsEnable = true;
+                    this._COM_RRU.ReadTimeout = 2000;
+                    this._COM_RRU.WriteTimeout = 1000;
+                        
+
                     //open serial port
 
                     try
                     {
-                        this._COM_RRU.PortName = this.addr.RRU;
-                        this._COM_RRU.BaudRate = int.Parse(this.addr.Baudrate_rru);
-                        this._COM_RRU.Parity = Parity.None;
-                        this._COM_RRU.DataBits = 8;
-                        this._COM_RRU.StopBits = StopBits.One;
-
+                           
                         this._COM_RRU.Open();
-
-                        SetText("rru serialport open ,and listen to datareceive.");
-                        LogManager.WriteLog(LogFile.Trace, "rru serialport open ,and listen to datareceive.");
+                        this._COM_RRU.DiscardInBuffer();
+                        this._COM_RRU.DiscardOutBuffer();
+                        this._COM_RRU.DataReceived += Com_rru_DataReceived;
+                        this._COM_RRU.ErrorReceived += Com_rru_ErrorReceived;
+                        WriteTraceText("Ru serialport open, and start Listenning.");
+                            
                         this.rruConnButton.CheckState = CheckState.Checked;
                     }
                     catch (Exception ex)
                     {
                         this._COM_RRU = null;
                         //现实异常信息给客户。  
-                        MessageBox.Show(ex.Message);
+                        WriteErrorText("serial port rru open failed: "+ex.Message);
                     }
-                }*/
-                
-
+                        
+                }
 
             }
             //close serial port
             else
             {
-                Close_serial_port();
-                this.rruConnButton.CheckState = CheckState.Unchecked;
+                if(Close_serial_port())
+                {
+                    this.rruConnButton.CheckState = CheckState.Unchecked;
+                    WriteTraceText("Ru serial port closed.");
+                }
+                   
             }
 
         }
@@ -708,24 +747,46 @@ namespace RTT
             //string command = "";
             //this.command_Process(command);
             //while (Listening) Application.DoEvents();
+            try
+            {
+                this._COM2.Close();
+                WriteTraceText("close serial 2 port.");
+            }
+            catch (Exception ex)
+            {
+                WriteErrorText("Close serial port 2 failed!");
+
+            }
             
-            this._COM2.Close();
             Closing_com2 = false;
-            WriteTraceText("close serial 2 port.");
+            
             
         }
 
         //close serial port
-        private void Close_serial_port()
+        private bool Close_serial_port()
         {
             Closing = true;
             //string command = "";
             //this.command_Process(command);
             while (Listening) Application.DoEvents();
+            try
+            {
+                this._COM_RRU.Close();
+                //this._COM_RRU.Dispose();
+                //this._COM_RRU = null;
+                //WriteTraceText("Ru serial port closed.");
+                Closing = false;
+                return true;
+            }
+            catch(Exception ex)
+            {
+                WriteErrorText("Close Ru serial port failed!");
+                Closing = false;
+                return false;
+            }
             
-            this._COM_RRU.Close();
-            Closing = false;
-            WriteTraceText("rru serial port closed.");
+            
             
         }
 
@@ -799,8 +860,16 @@ namespace RTT
                 lock (_lock_RRUCOM)
                 {
                     //tempstr = this._COM_RRU.ReadExisting();
-                    n = this._COM_RRU.Read(readbuf, 0, readbuf.Length);
-                    buf = Encoding.ASCII.GetChars(readbuf);
+                    try
+                    {
+                        n = this._COM_RRU.Read(readbuf, 0, readbuf.Length);
+                    }
+                    catch(Exception ex)
+                    {
+                        n = 0;
+                        WriteErrorText("Read from RRU failed! "+ex.Message);
+                    }
+                    
                     
                     //foreach(var b in readbuf)
                     //{
@@ -810,7 +879,8 @@ namespace RTT
                     
                     if (n>0)
                     {
-                        for(int i=0; i!= buf.Length; i++)
+                        buf = Encoding.ASCII.GetChars(readbuf);
+                        for (int i=0; i!= buf.Length; i++)
                         {
                             if(buf[i]=='\n'||buf[i]=='\r')
                             {
@@ -840,6 +910,8 @@ namespace RTT
 
                                 }
                                 _rruresp++;
+                                if (_rruresp > _rrusend)
+                                    _rruresp = _rrusend;
                                 builder.Clear();
                             }
                             else
@@ -1031,13 +1103,36 @@ namespace RTT
 
     */
         //send button
-        private void button_sendcommand_Click(object sender, EventArgs e)
+        //private async void button_sendcommand_Click(object sender, EventArgs e)
+        private  void button_sendcommand_Click(object sender, EventArgs e)
         {
-            
-            string command = this.InputBox.Text;
-            this.command_Process(command);
-               
-            
+            //sender to rru or device
+            if(tabControl_display.SelectedTab == tab_main_display)
+            {
+                string command = this.InputBox.Text;
+                cmdQueue.Enqueue(command);
+                _waitcmdQueueEventHandle.Set();
+            }
+            //send to du
+            else if(tabControl_display.SelectedTab == tabPage_remote)
+            {
+                string command = this.InputBox.Text;
+                Addhistory(command);
+                //if (du.IsConnected)
+                //{
+                //    du.WriteLine(command);
+                //    //WriteTraceText_to_remote(DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss: send ")+ command);
+                //    string print = await du.Read();
+                //    //WriteTraceText_to_remote(DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss: read "));
+                //    WriteTraceText_to_remote(print);
+                //}
+                t.Send(command);
+                    
+            }
+            this.InputBox.Clear();
+            //this.command_Process(command);
+
+
 
         }
 
@@ -1052,26 +1147,26 @@ namespace RTT
             if (command != null)
             {
 
-                
-                LogManager.WriteLog(LogFile.Debug, "socket receive:"+command);
+
+
+                LogManager.WriteLog(LogFile.Debug, "socket receive:" + command);
                 string[] scokcmd = command.Split('$');
-                if(scokcmd.Length==2)
-                    result = this.command_Process(scokcmd[0], int.Parse(scokcmd[1]));
+                
+                if (scokcmd.Length==2)
+                    result = this.command_Process(scokcmd[0], true,int.Parse(scokcmd[1]));
                 else if(scokcmd.Length == 3)
-                    result = this.command_Process(scokcmd[0], int.Parse(scokcmd[1]), scokcmd[2]);
+                    result = this.command_Process(scokcmd[0], true,int.Parse(scokcmd[1]), scokcmd[2]);
+
             }
             
             return result;
         }
 
         //in visacom mode
-        private void SaCapturebyVisacom(string name = "")
+        private void SaCapturebyVisacom(IMessage sesnCapture,string name = "",int delay = 5000)
         {
             
             StringBuilder filename = new StringBuilder();
-            string cmd = "MMEM:STOR:SCR \"D:\\rttscr.png\"";//;*OPC?
-            this.sa_sesn.WriteString(cmd);
-            this.sa_sesn.WriteString("MMEM:DATA? \"D:\\rttscr.png\"");
             if (name != "")
             {
                 filename.Append(name).Append(@".png");
@@ -1080,67 +1175,106 @@ namespace RTT
             {
                 filename.Append(DateTime.Now.ToString("yyyy-MM-dd_HH_mm_ss")).Append(@".png");
             }
+            string cmd = "MMEM:STOR:SCR \"D:\\rttscr.png\"";//;*OPC?
+            sesnCapture.WriteString(cmd);
+            sesnCapture.WriteString("MMEM:DATA? \"D:\\rttscr.png\"");
+            
             //this.sa_sesn.WriteString("CALCulate:DATA?");
             
             byte[] readbuf;
             
-            readbuf = this.sa_sesn.Read(1000000);
+            readbuf = sesnCapture.Read(1000000);
             //WriteDebugText(Encoding.ASCII.GetString(readbuf));
-            Thread.Sleep(4000);
-            this.sa_sesn.WriteString("MMEM:DEL \"D:\\rttscr.png\"");
-            this.sa_sesn.WriteString("*CLS");
+            //if(delay>5000)
+            //    Thread.Sleep(delay);
+            //else
+            //    Thread.Sleep(5000);
+            sesnCapture.WriteString("MMEM:DEL \"D:\\rttscr.png\"");
+            sesnCapture.WriteString("*CLS");
             
             byte[] size = { readbuf[1] };
             
             byte[] newbuf = readbuf.Skip(2+ int.Parse(Encoding.ASCII.GetString(size))).Take(readbuf.Length-9).ToArray();
             
-            File.WriteAllBytes(_snapPath + filename, newbuf);
+            File.WriteAllBytes(_snapPath + filename.ToString(), newbuf);
         }
 
         //only in visa32 mode
-        private void SaCapture(string name="")
+        private void SaCapture(int vi,string name="", int delay = 5000)
         {
             // SA截图
-            int status = -1;
+            //int status = -1;
             StringBuilder filename = new StringBuilder();
             byte[] buf = new byte[1];
-            
-            string cmd = "MMEM:STOR:SCR \"D:\\rttscr.png\"";//;*OPC?
-            buf = Encoding.ASCII.GetBytes(cmd);
-            
-            int recount;
-            visa32.viWrite(viSA, buf, buf.Length, out recount);
-            
-            buf = Encoding.ASCII.GetBytes("MMEM:DATA? \"D:\\rttscr.png\"\n");
-            visa32.viWrite(viSA, buf, buf.Length, out recount);
-            byte[] readbuf = new byte[1000000];
+
             if (name != "")
             {
                 filename.Append(name).Append(@".png");
-            } 
+            }
             else
             {
                 filename.Append(DateTime.Now.ToString("yyyy-MM-dd_HH_mm_ss")).Append(@".png");
             }
+            string cmdfilename = " \"D:\\" + filename.ToString() + "\"";
+            string cmd = "MMEM:STOR:SCR"+ cmdfilename;//;*OPC?
+            //WriteTraceText(cmd);
+            //buf = Encoding.ASCII.GetBytes(cmd);
             
+            int recount;
+            visa32.viPrintf(vi, cmd+"\n");//.viWrite(viSA, buf, buf.Length, out recount);
             
-            int tmep = readbuf.Length;
-            
-            status = visa32.viRead(viSA, readbuf, tmep, out recount);
-            Thread.Sleep(4000);
-            status = visa32.viPrintf(viSA, "MMEM:DEL \"D:\\rttscr.png\"\n");
-            status = visa32.viPrintf(viSA, "*CLS\n");
+            //buf = Encoding.ASCII.GetBytes("MMEM:DATA? \"D:\\rttscr.png\"\n");
+            cmd = "MMEM:DATA?"+ cmdfilename;
+            visa32.viPrintf(vi, cmd + "\n");//.viWrite(viSA, buf, buf.Length, out recount);
+                
+            byte[] readbuf = new byte[1000000];
+                    
+
+
+            //int tmep = readbuf.Length;
+
+            visa32.viRead(vi, readbuf, readbuf.Length, out recount);
+                    
+            //if (delay > 5000)
+            //    Thread.Sleep(delay);
+            //else
+            //    Thread.Sleep(5000);
+            cmd = "MMEM:DEL"+cmdfilename;
+            visa32.viPrintf(vi, cmd + "\n"); //"MMEM:STOR:SCR \"D:\\" + filename
+                        
+            cmd = "*CLS";
+            visa32.viPrintf(vi, "*CLS\n");
+                            
             //int size = System.BitConverter.ToInt32(readbuf, 1);
             byte[] size = { readbuf[1] };
             //WriteText(Encoding.ASCII.GetString(size));
-            byte[] newbuf = readbuf.Skip(2+int.Parse(Encoding.ASCII.GetString(size))).Take(recount - 9).ToArray();
+            byte[] newbuf = readbuf.Skip(2 + int.Parse(Encoding.ASCII.GetString(size))).Take(recount - 9).ToArray();
+            //byte[] newbuf = readbuf.Take(recount).ToArray();
+            try
+            {
+                File.WriteAllBytes(_snapPath + filename.ToString(), newbuf);
+            }
+            catch(Exception ex)
+            {
+                WriteTraceText("write capture picture failed! " + ex.Message);
+            }
             
-            File.WriteAllBytes(_snapPath  + filename, newbuf);
+                            
+                            
+                        
+                        
+                    
+                    
+                
+                
+           
+            
+
             
 
         }
         //all command process
-        private string command_Process(string cmd,int delay=0,string filename = "")
+        private string command_Process(string cmd,bool socket = false,int delay=0,string filename = "")
         {
             
 
@@ -1148,75 +1282,102 @@ namespace RTT
             string result = "";
             char[] cl = { ':' };
             string sendcmd = "";
-            //if(cmd!=String.Empty)
-            //{
+            
             Addhistory(cmd);
             LogManager.WriteLog(LogFile.Command, cmd);
             //WriteTraceText(cmd);
-            
 
-            //根据前缀判断仪器
-            if (cmd.Contains("SA."))
+            //zhushi
+            if (!cmd.StartsWith("#"))
             {
-                if (cmd.Contains(Constant.PRIFIX_SA))
+
+
+
+                //根据前缀判断仪器
+                if (cmd.Contains("SA."))
                 {
-
-                    sendcmd = cmd.Replace(Constant.PRIFIX_SA, "").TrimStart(cl);
-                    if (this.addr.SA != "")
+                    if (cmd.Contains(Constant.PRIFIX_SA))
                     {
-                        try
+
+                        sendcmd = cmd.Replace(Constant.PRIFIX_SA, "").TrimStart(cl);
+                        if (this.addr.SA != "")
                         {
-                            if(this.VisaSwitch)  //true == visa32
+                            try
                             {
-                                result = this.send_to_instrument(cmd,this.addr.SA, sendcmd, ref this.sesnSA, ref this.viSA, delay);
+                                if (this.VisaSwitch)  //true == visa32
+                                {
+                                    result = this.send_to_instrument(cmd, this.addr.SA, sendcmd, ref this.sesnSA, ref this.viSA, delay);
+                                }
+                                else
+                                {
+                                    result = this.send_to_instrument(cmd, this.addr.SA, sendcmd, this.sa_sesn, delay);
+                                }
+                                if (this.tag_sa.BackColor == Color.Pink)
+                                {
+                                    this.tag_sa.BackColor = Color.SpringGreen;
+                                }
+
+
                             }
-                            else
+                            catch (Exception e)
                             {
-                                result = this.send_to_instrument(cmd,this.addr.SA, sendcmd, this.sa_sesn,delay );
+                                this.tag_sa.BackColor = Color.Pink;
                             }
-                            if(this.tag_sa.BackColor == Color.Pink)
-                            {
-                                this.tag_sa.BackColor = Color.SpringGreen;
-                            }
-                            
-                            
                         }
-                        catch (Exception e)
+                        else
                         {
-                            this.tag_sa.BackColor = Color.Pink;
+                            WriteTraceText("Please setup SA address first!");
+
                         }
+
+
+
                     }
-                    else
-                    {
-                        WriteTraceText("Please setup SA address first!");
-                        
-                    }
-
-
-
+                    
                 }
-                else if (cmd.Contains("SA.Capture"))
+                else if (cmd.Contains("Capture1"))
                 {
                     WriteTraceText(cmd);
-                    if (this.addr.SA != "")
+                    if (this.addr.capture1 != string.Empty)
                     {
-                        if(this.VisaSwitch)   //only in visa32
-                            this.SaCapture(filename);
+                        if (this.VisaSwitch) //true == visa32
+                        {
+                            this.SaCapture(viCapture1, filename,delay);
+                        }
                         else
-                            this.SaCapturebyVisacom(filename);
+                        {
+                            this.SaCapturebyVisacom(sesnCapture1, filename,delay);
+                        }
                     }
-                        
                     else
-                        WriteTraceText("Please setup SA address first!");
+                        WriteTraceText("Please input capture1 address first!");
+                    
                     
 
-                   
                 }
-            }
-                
-            else if (cmd.Contains(Constant.PRIFIX_SG))
-            {
-                sendcmd = cmd.Replace(Constant.PRIFIX_SG, "").TrimStart(cl);
+                else if (cmd.Contains("Capture2"))
+                {
+
+                    WriteTraceText(cmd);
+                    if (this.addr.capture2 != string.Empty)
+                    {
+                        if (this.VisaSwitch) //true == visa32
+                        {
+                            this.SaCapture(viCapture2, filename, delay);
+                        }
+                        else
+                        {
+                            this.SaCapturebyVisacom(sesnCapture2, filename, delay);
+                        }
+                    }
+                    else
+                        WriteTraceText("Please input capture2 address first!");
+                    
+
+                }
+                else if (cmd.Contains(Constant.PRIFIX_SG))
+                {
+                    sendcmd = cmd.Replace(Constant.PRIFIX_SG, "").TrimStart(cl);
                     if (this.addr.SG != "")
                     {
                         try
@@ -1224,19 +1385,19 @@ namespace RTT
                             if (this.VisaSwitch)  //true == visa32
                             {
                                 result = this.send_to_instrument(cmd, this.addr.SG, sendcmd, ref this.sesnSG, ref this.viSG, delay);
-                                
+
                             }
                             else
                             {
-                                result = this.send_to_instrument(cmd, this.addr.SG, sendcmd, this.sg_sesn, delay );
+                                result = this.send_to_instrument(cmd, this.addr.SG, sendcmd, this.sg_sesn, delay);
                             }
-                        if (this.tag_sg1.BackColor == Color.Pink)
-                        {
-                            this.tag_sg1.BackColor = Color.SpringGreen;
+                            if (this.tag_sg1.BackColor == Color.Pink)
+                            {
+                                this.tag_sg1.BackColor = Color.SpringGreen;
+                            }
+
+
                         }
-
-
-                    }
                         catch (Exception e)
                         {
                             this.tag_sg1.BackColor = Color.Pink;
@@ -1245,13 +1406,13 @@ namespace RTT
                     else
                     {
                         WriteTraceText("Please setup SG address first!");
-                    
+
                     }
-                        
-            }
-            else if (cmd.Contains(Constant.PRIFIX_SG2))
-            {
-                sendcmd = cmd.Replace(Constant.PRIFIX_SG2, "").TrimStart(cl);
+
+                }
+                else if (cmd.Contains(Constant.PRIFIX_SG2))
+                {
+                    sendcmd = cmd.Replace(Constant.PRIFIX_SG2, "").TrimStart(cl);
                     if (this.addr.SG2 != "")
                     {
                         try
@@ -1262,15 +1423,15 @@ namespace RTT
                             }
                             else
                             {
-                                result = this.send_to_instrument(cmd, this.addr.SG2, sendcmd, this.sg2_sesn, delay );
+                                result = this.send_to_instrument(cmd, this.addr.SG2, sendcmd, this.sg2_sesn, delay);
                             }
-                        if (this.tag_sg2.BackColor == Color.Pink)
-                        {
-                            this.tag_sg2.BackColor = Color.SpringGreen;
+                            if (this.tag_sg2.BackColor == Color.Pink)
+                            {
+                                this.tag_sg2.BackColor = Color.SpringGreen;
+                            }
+
+
                         }
-
-
-                    }
                         catch (Exception e)
                         {
                             this.tag_sg2.BackColor = Color.Pink;
@@ -1279,13 +1440,13 @@ namespace RTT
                     else
                     {
                         WriteTraceText("Please setup SG2 address first!");
-                    
+
                     }
-                        
-            }
-            else if (cmd.Contains(Constant.PRIFIX_IS1))
-            {
-                sendcmd = cmd.Replace(Constant.PRIFIX_IS1, "").TrimStart(cl);
+
+                }
+                else if (cmd.Contains(Constant.PRIFIX_IS1))
+                {
+                    sendcmd = cmd.Replace(Constant.PRIFIX_IS1, "").TrimStart(cl);
                     if (this.addr.IS1 != "")
                     {
                         try
@@ -1296,15 +1457,15 @@ namespace RTT
                             }
                             else
                             {
-                                result = this.send_to_instrument(cmd, this.addr.IS1, sendcmd, this.is_sesn, delay );
+                                result = this.send_to_instrument(cmd, this.addr.IS1, sendcmd, this.is_sesn, delay);
                             }
-                        if (this.tag_is1.BackColor == Color.Pink)
-                        {
-                            this.tag_is1.BackColor = Color.SpringGreen;
+                            if (this.tag_is1.BackColor == Color.Pink)
+                            {
+                                this.tag_is1.BackColor = Color.SpringGreen;
+                            }
+
+
                         }
-
-
-                    }
                         catch (Exception e)
                         {
                             this.tag_is1.BackColor = Color.Pink;
@@ -1314,11 +1475,11 @@ namespace RTT
                     {
                         WriteTraceText("Please setup IS1 address first!");
                     }
-                    
-            }
-            else if (cmd.Contains(Constant.PRIFIX_IS2))
-            {
-                sendcmd = cmd.Replace(Constant.PRIFIX_IS2, "").TrimStart(cl);
+
+                }
+                else if (cmd.Contains(Constant.PRIFIX_IS2))
+                {
+                    sendcmd = cmd.Replace(Constant.PRIFIX_IS2, "").TrimStart(cl);
                     if (this.addr.IS2 != "")
                     {
                         try
@@ -1329,15 +1490,15 @@ namespace RTT
                             }
                             else
                             {
-                                result = this.send_to_instrument(cmd, this.addr.IS2, sendcmd, this.is2_sesn, delay );
+                                result = this.send_to_instrument(cmd, this.addr.IS2, sendcmd, this.is2_sesn, delay);
                             }
-                        if (this.tag_is2.BackColor == Color.Pink)
-                        {
-                            this.tag_is2.BackColor = Color.SpringGreen;
+                            if (this.tag_is2.BackColor == Color.Pink)
+                            {
+                                this.tag_is2.BackColor = Color.SpringGreen;
+                            }
+
+
                         }
-
-
-                    }
                         catch (Exception e)
                         {
                             this.tag_is2.BackColor = Color.Pink;
@@ -1347,11 +1508,11 @@ namespace RTT
                     {
                         WriteTraceText("Please setup IS2 address first!");
                     }
-                    
-            }
-            else if (cmd.Contains(Constant.PRIFIX_RFBOX))
-            {
-                sendcmd = cmd.Replace(Constant.PRIFIX_RFBOX, "");
+
+                }
+                else if (cmd.Contains(Constant.PRIFIX_RFBOX))
+                {
+                    sendcmd = cmd.Replace(Constant.PRIFIX_RFBOX, "");
                     if (this.addr.RFBOX != "")
                     {
                         try
@@ -1362,15 +1523,15 @@ namespace RTT
                             }
                             else
                             {
-                                result = this.send_to_instrument(cmd, this.addr.RFBOX, sendcmd,  this.rfbox_sesn, delay);
+                                result = this.send_to_instrument(cmd, this.addr.RFBOX, sendcmd, this.rfbox_sesn, delay);
                             }
-                        if (this.tag_rfbox1.BackColor == Color.Pink)
-                        {
-                            this.tag_rfbox1.BackColor = Color.SpringGreen;
+                            if (this.tag_rfbox1.BackColor == Color.Pink)
+                            {
+                                this.tag_rfbox1.BackColor = Color.SpringGreen;
+                            }
+
+
                         }
-
-
-                    }
                         catch (Exception e)
                         {
                             this.tag_rfbox1.BackColor = Color.Pink;
@@ -1380,11 +1541,11 @@ namespace RTT
                     {
                         WriteTraceText("Please setup RFBOX address first!");
                     }
-                    
-            }
-            else if (cmd.Contains(Constant.PRIFIX_RFBOX2))
-            {
-                sendcmd = cmd.Replace(Constant.PRIFIX_RFBOX2, "");
+
+                }
+                else if (cmd.Contains(Constant.PRIFIX_RFBOX2))
+                {
+                    sendcmd = cmd.Replace(Constant.PRIFIX_RFBOX2, "");
                     if (this.addr.RFBOX2 != "")
                     {
                         try
@@ -1395,16 +1556,16 @@ namespace RTT
                             }
                             else
                             {
-                                result = this.send_to_instrument(cmd, this.addr.RFBOX2, sendcmd,  this.rfbox2_sesn, delay);
+                                result = this.send_to_instrument(cmd, this.addr.RFBOX2, sendcmd, this.rfbox2_sesn, delay);
                             }
-                        if (this.tag_rfbox2.BackColor == Color.Pink)
-                        {
-                            this.tag_rfbox2.BackColor = Color.SpringGreen;
+                            if (this.tag_rfbox2.BackColor == Color.Pink)
+                            {
+                                this.tag_rfbox2.BackColor = Color.SpringGreen;
+                            }
+
+
+
                         }
-
-
-
-                    }
                         catch (Exception e)
                         {
                             this.tag_rfbox2.BackColor = Color.Pink;
@@ -1414,29 +1575,30 @@ namespace RTT
                     {
                         WriteTraceText("Please setup RFBOX2 address first!");
                     }
-                   
-            }
-            else if (cmd.Contains(Constant.PRIFIX_DC5767A))
-            {
-                sendcmd = cmd.Replace(Constant.PRIFIX_DC5767A, "").TrimStart(cl);
+
+                }
+                else if (cmd.Contains(Constant.PRIFIX_DC5767A))
+                {
+                    sendcmd = cmd.Replace(Constant.PRIFIX_DC5767A, "").TrimStart(cl);
                     if (this.addr.DC5767A != "")
                     {
                         try
                         {
                             if (this.VisaSwitch)  //true == visa32
                             {
-                                result = this.send_to_instrument(cmd, this.addr.DC5767A, sendcmd, ref this.sesnDC5767A, ref this.viDC5767A, delay);
+                                this.send_to_instrument(cmd, this.addr.DC5767A, sendcmd, ref this.sesnDC5767A, ref this.viDC5767A);
                             }
                             else
                             {
-                                result = this.send_to_instrument(cmd, this.addr.DC5767A, sendcmd,this.dc5767a_sesn, delay);
+                                this.send_to_instrument(cmd, this.addr.DC5767A, sendcmd, this.dc5767a_sesn, delay);
                             }
-                        if (this.tag_DC5767A.BackColor == Color.Pink)
-                        {
-                            this.tag_DC5767A.BackColor = Color.SpringGreen;
-                        }
+                            if (this.tag_DC5767A.BackColor == Color.Pink)
+                            {
+                                this.tag_DC5767A.BackColor = Color.SpringGreen;
+                            }
+                             
 
-                    }
+                        }
                         catch (Exception e)
                         {
                             this.tag_DC5767A.BackColor = Color.Pink;
@@ -1446,24 +1608,24 @@ namespace RTT
                     {
                         WriteTraceText("Please setup DC5767A address first!");
                     }
-                    
-            }
-            else if (cmd.Contains(Constant.PRIFIX_RUMASTER))
-            {
-                WriteTraceText(cmd);
-                sendcmd = cmd.Replace(Constant.PRIFIX_RUMASTER, "").TrimStart(cl);
-                if (this.tag_rumaster.BackColor != Color.Pink)
+
+                }
+                else if (cmd.Contains(Constant.PRIFIX_RUMASTER))
                 {
-                    try
+                    WriteTraceText(cmd);
+                    sendcmd = cmd.Replace(Constant.PRIFIX_RUMASTER, "").TrimStart(cl);
+                    if (this.tag_rumaster.BackColor != Color.Pink)
                     {
-                        if (sendcmd.Contains("setIQfile"))
+                        try
                         {
-                            string[] cmds = sendcmd.Split('#');
-                            if (cmds.Length >= 3)
+                            if (sendcmd.Contains("setIQfile"))
                             {
-                                this.RumasterSetIQfile(cmds[1], cmds[2]);
-                                
-                            }
+                                string[] cmds = sendcmd.Split('#');
+                                if (cmds.Length >= 3)
+                                {
+                                    this.RumasterSetIQfile(cmds[1], cmds[2]);
+
+                                }
 
 
                         }
@@ -1474,6 +1636,68 @@ namespace RTT
                             {
                                 this.RumasterSetCPCfile(cmds[1], cmds[2]);
                             }
+                        }
+                        else if (sendcmd.Contains("startplayback"))
+                        {
+                            string[] cmds = sendcmd.Split('#');
+                            if (cmds.Length >= 3)
+                            {
+
+                                if (cmds[2] == "all")
+                                {
+                                    Tiger.Ruma.FlowDataType[] flows = { Tiger.Ruma.FlowDataType.AXC, Tiger.Ruma.FlowDataType.IQ };
+                                    this.RumasterStartPlayBack(cmds[1], flows);
+                                }
+                                else if (cmds[2] == "axc")
+                                {
+                                    Tiger.Ruma.FlowDataType[] flows = { Tiger.Ruma.FlowDataType.AXC };
+                                    this.RumasterStartPlayBack(cmds[1], flows);
+                                }
+                                else if (cmds[2] == "iq")
+                                {
+                                    Tiger.Ruma.FlowDataType[] flows = { Tiger.Ruma.FlowDataType.IQ };
+                                    this.RumasterStartPlayBack(cmds[1], flows);
+                                }
+                                else
+                                {
+                                    WriteTraceText("Rumaster Commands format error!");
+                                }
+                            }
+                            else
+                            {
+                                WriteTraceText("Rumaster Commands format error!");
+                            }
+                        }
+                        else if (sendcmd.Contains("stopplayback"))
+                        {
+                            string[] cmds = sendcmd.Split('#');
+                            if (cmds.Length >= 3)
+                            {
+                                if (cmds[2] == "all")
+                                {
+                                    Tiger.Ruma.FlowDataType[] flows = { Tiger.Ruma.FlowDataType.AXC, Tiger.Ruma.FlowDataType.IQ };
+                                    this.RumasterStopPlayBack(cmds[1], flows);
+                                }
+                                else if (cmds[2] == "axc")
+                                {
+                                    Tiger.Ruma.FlowDataType[] flows = { Tiger.Ruma.FlowDataType.AXC };
+                                    this.RumasterStopPlayBack(cmds[1], flows);
+                                }
+                                else if (cmds[2] == "iq")
+                                {
+                                    Tiger.Ruma.FlowDataType[] flows = { Tiger.Ruma.FlowDataType.IQ };
+                                    this.RumasterStopPlayBack(cmds[1], flows);
+                                }
+                                else
+                                {
+                                    WriteTraceText("Rumaster Commands format error!");
+                                }
+                            }
+                            else
+                            {
+                                WriteTraceText("Rumaster Commands format error!");
+                            }
+
                         }
                         else if (sendcmd.Contains("CpcFileSetLoopLengthFromIQFile"))
                         {
@@ -1495,7 +1719,7 @@ namespace RTT
                                 result = this.RumasterGetStartStopCondition(cmds[1], cmds[2], cmds[3]);
                             }
                         }
-						else if (sendcmd.Contains("SetStartStopCondition"))
+                        else if (sendcmd.Contains("SetStartStopCondition"))
                         {
                             string[] cmds = sendcmd.Split('#');
                             if (cmds.Length >= 8)
@@ -1511,7 +1735,7 @@ namespace RTT
                                 result = this.RumasterGetFlowDataMode(cmds[1], cmds[2], cmds[3]);
                             }
                         }
-						else if (sendcmd.Contains("SetFlowDataMode"))
+                        else if (sendcmd.Contains("SetFlowDataMode"))
                         {
                             string[] cmds = sendcmd.Split('#');
                             if (cmds.Length >= 5)
@@ -1548,7 +1772,7 @@ namespace RTT
                             string[] cmds = sendcmd.Split(SPACER_FLAG_FIR);
                             if (cmds.Length >= 4)
                             {
-                                result = this.RumasterGetCarrierConfig(cmds[1], cmds[2], cmds[3]);                                
+                                result = this.RumasterGetCarrierConfig(cmds[1], cmds[2], cmds[3]);
                             }
                         }
                         else if (sendcmd.Contains("SetCarrierConfig"))
@@ -1557,10 +1781,10 @@ namespace RTT
                             if (cmds.Length >= 14)
                             {
                                 this.RumasterSetCarrierConfig(cmds[1], cmds[2], cmds[3], cmds[4], cmds[5], cmds[6], cmds[7], cmds[8], cmds[9], cmds[10], cmds[11], cmds[12], cmds[13]);
-                            }                           
+                            }
                         }
                         else if (sendcmd.Contains("SetCpriConfig"))
-                        {                            
+                        {
                             string[] cmds = sendcmd.Split(SPACER_FLAG_FIR);
                             if (cmds.Length >= 4)
                             {
@@ -1588,42 +1812,9 @@ namespace RTT
                             string[] cmds = sendcmd.Split(SPACER_FLAG_FIR);
                             if (cmds.Length >= 3)
                             {
-                                 this.RumasterSetPllRef(cmds[1], cmds[2]);
+                                this.RumasterSetPllRef(cmds[1], cmds[2]);
                             }
-                        }
-                        else if (sendcmd.Contains("startplayback"))
-                        {
-                            string[] cmds = sendcmd.Split('#');
-                            if (cmds.Length >= 3)
-                            {
-
-                                if (cmds[2] == "all")
-                                {
-                                    Tiger.Ruma.FlowDataType[] flows = { Tiger.Ruma.FlowDataType.AXC, Tiger.Ruma.FlowDataType.IQ };
-                                    this.RumasterStartPlayBack(cmds[1], flows);
-                                }
-                                else if (cmds[2] == "axc")
-                                {
-                                    Tiger.Ruma.FlowDataType[] flows = { Tiger.Ruma.FlowDataType.AXC };
-                                    this.RumasterStartPlayBack(cmds[1], flows);
-                                }
-                                else if (cmds[2] == "iq")
-                                {
-                                    Tiger.Ruma.FlowDataType[] flows = { Tiger.Ruma.FlowDataType.IQ };
-                                    this.RumasterStartPlayBack(cmds[1], flows);
-                                }
-                                else
-                                {
-                                    WriteTraceText("Rumaster Commands format error!");
-                                }
-                            }
-                            else
-                            {
-                                WriteTraceText("Rumaster Commands format error!");
-                            }
-
-
-                        }
+                        }     
                         else if (sendcmd.Contains("rxevmcaptureOnce"))
                         {
                             string[] cmds = sendcmd.Split('#');     //rxevmcapture#cpriport#filename(option)
@@ -1632,304 +1823,461 @@ namespace RTT
                             {
                                 try
                                 {
-                                    
-                                    // fill in with port, direction , data tyep and mode, ok?ok
-                                    this.icdf.SetFlowDataMode(cmds[1], CpriFlowDirection.RX, FlowDataType.IQ, FlowDataMode.RAW);
-                                    this.icdf.StartCapture(cmds[1], Tiger.Ruma.FlowDataType.IQ);
-                                    Thread.Sleep(20);
-                                    this.icdf.StopCapture(cmds[1], Tiger.Ruma.FlowDataType.IQ);
-                                    if (cmds.Length == 2)
-                                    {
-                                        _tempfilename = DateTime.Now.ToString("HH_mm_ss") + ".cul";
-                                    }
-                                    else
-                                    {
-                                        _tempfilename = cmds[2] + ".cul";
-                                    }
-                                    this.icdf.ExportAllCapturedData(cmds[1], @"c:\RTT\rxevm\" + _tempfilename, "", Tiger.Ruma.ExportFormat.Cul, Tiger.Ruma.UmtsType.LTE);
-                                    WriteTraceText("rxevm capture : " + _tempfilename + " on cpri " + cmds[1]);
-                                    result = _tempfilename;
-                                }
-                                catch(Exception exp)
-                                {
-                                    WriteTraceText(exp.Message + "RX_EVM_Capture failed!");
-                                }
-                                
-                            }
-                            else
-                            {
-                                WriteTraceText("Please command,rxevmcaptureOnce#cpriport");
-                            }
-                        }
-                        else if (sendcmd.Contains("rxevmcaptureStart"))
-                        {
-                            string[] cmds = sendcmd.Split('#');     //rxevmcapture#cpriport#interval
-                            if(cmds.Length>=3)
-                            {
-                                try
-                                {
-                                    if (int.Parse(cmds[2]) > 2000)
-                                    {
-                                        _cpriport = cmds[1];
-                                        _evmtimer.Interval = int.Parse(cmds[2]);
-                                        _evmtimer.Enabled = true;
-                                        _evmtimer.Elapsed += new System.Timers.ElapsedEventHandler(_evmtimer_Elapsed);
-                                        WriteTraceText("EvmCapture start! Interval is : "+ cmds[2]+" ms ");
-                                    }
-                                }
-                                catch(Exception e)
-                                {
-                                    WriteTraceText("please check interval value" + e.Message);
-                                }
-                                
-                            }
-                            else
-                            {
-                                WriteTraceText("Please command,rxevmcaptureStart#cpriport#interval(ms)");
-                            }
-                            
-                        }
-                        else if (sendcmd.Contains("rxevmcaptureStop"))
-                        {
-                            string[] cmds = sendcmd.Split('#');     //rxevmcapture#cpriport
-                            if (cmds.Length >= 1)
-                            {
 
-                                _evmtimer.Stop();
-                                WriteTraceText("EvmCapture stop !");
-                                
+                                        // fill in with port, direction , data tyep and mode, ok?ok
+                                        this.icdf.SetFlowDataMode(cmds[1], CpriFlowDirection.RX, FlowDataType.IQ, FlowDataMode.RAW);
+                                        this.icdf.StartCapture(cmds[1], Tiger.Ruma.FlowDataType.IQ);
+                                        Thread.Sleep(20);
+                                        this.icdf.StopCapture(cmds[1], Tiger.Ruma.FlowDataType.IQ);
+                                        if (cmds.Length == 2)
+                                        {
+                                            _tempfilename = DateTime.Now.ToString("HH_mm_ss") + ".cul";
+                                        }
+                                        else
+                                        {
+                                            _tempfilename = cmds[2] + ".cul";
+                                        }
+                                        this.icdf.ExportAllCapturedData(cmds[1], @"c:\RTT\rxevm\" + _tempfilename, "", Tiger.Ruma.ExportFormat.Cul, Tiger.Ruma.UmtsType.LTE);
+                                        WriteTraceText("rxevm capture : " + _tempfilename + " on cpri " + cmds[1]);
+                                        result = _tempfilename;
+                                    }
+                                    catch (Exception exp)
+                                    {
+                                        WriteTraceText(exp.Message + "RX_EVM_Capture failed!");
+                                    }
 
-                            }
-
-                        }
-                        else if (sendcmd.Contains("stopplayback"))
-                        {
-                            string[] cmds = sendcmd.Split('#');
-                            if (cmds.Length >= 3)
-                            {
-                                if (cmds[2] == "all")
-                                {
-                                    Tiger.Ruma.FlowDataType[] flows = { Tiger.Ruma.FlowDataType.AXC, Tiger.Ruma.FlowDataType.IQ };
-                                    this.RumasterStopPlayBack(cmds[1], flows);
-                                }
-                                else if (cmds[2] == "axc")
-                                {
-                                    Tiger.Ruma.FlowDataType[] flows = { Tiger.Ruma.FlowDataType.AXC };
-                                    this.RumasterStopPlayBack(cmds[1], flows);
-                                }
-                                else if (cmds[2] == "iq")
-                                {
-                                    Tiger.Ruma.FlowDataType[] flows = { Tiger.Ruma.FlowDataType.IQ };
-                                    this.RumasterStopPlayBack(cmds[1], flows);
                                 }
                                 else
                                 {
-                                    WriteTraceText("Rumaster Commands format error!");
+                                    WriteTraceText("Please command,rxevmcaptureOnce#cpriport");
                                 }
                             }
-                            else
+                            else if (sendcmd.Contains("rxevmcaptureStart"))
                             {
-                                WriteTraceText("Rumaster Commands format error!");
+                                string[] cmds = sendcmd.Split('#');     //rxevmcapture#cpriport#interval
+                                if (cmds.Length >= 3)
+                                {
+                                    try
+                                    {
+                                        if (int.Parse(cmds[2]) > 2000)
+                                        {
+                                            _cpriport = cmds[1];
+                                            _evmtimer.Interval = int.Parse(cmds[2]);
+                                            _evmtimer.Enabled = true;
+                                            _evmtimer.Elapsed += new System.Timers.ElapsedEventHandler(_evmtimer_Elapsed);
+                                            WriteTraceText("EvmCapture start! Interval is : " + cmds[2] + " ms ");
+                                        }
+                                    }
+                                    catch (Exception e)
+                                    {
+                                        WriteTraceText("please check interval value" + e.Message);
+                                    }
+
+                                }
+                                else
+                                {
+                                    WriteTraceText("Please command,rxevmcaptureStart#cpriport#interval(ms)");
+                                }
+
+                            }
+                            else if (sendcmd.Contains("rxevmcaptureStop"))
+                            {
+                                string[] cmds = sendcmd.Split('#');     //rxevmcapture#cpriport
+                                if (cmds.Length >= 1)
+                                {
+
+                                _evmtimer.Stop();
+                                WriteTraceText("EvmCapture stop !");
+                            }
+                        }
+						else if (sendcmd.Contains("RULoader"))
+						{
+							string[] cmds = sendcmd.Split('#');
+							if (sendcmd.Contains("UpgradeRU"))
+                            {                                
+                                if (cmds.Length >= 5)
+                                {
+                                    this.RumasterUpgradeRU(cmds[1],cmds[2],cmds[3],cmds[4]);
+                                }
+                            }
+							else if(sendcmd.Contains("UpgradeRUStatus"))
+                            { 
+                            	result = this.RumasterUpgradeRUStatus();                            
+                            }
+							else if(sendcmd.Contains("RuHwInfo"))
+                            {                                
+                                if (cmds.Length >= 3)
+                                {
+                                    result=this.RumasterRuHwInfo(cmds[1],cmds[2]);
+                                }
+                            }
+							else if(sendcmd.Contains("RuSwInfo"))
+                            {                                
+                                if (cmds.Length >= 3)
+                                {
+                                    result=this.RumasterRuSwInfo(cmds[1],cmds[2]);
+                                }
+                            }
+							else if(sendcmd.Contains("AsynchronousUpgradeRU"))
+                            {                                
+                                if (cmds.Length >= 5)
+                                {
+                                    result=this.RumasterAsynchronousUpgradeRU(cmds[1],cmds[2],cmds[3],cmds[4]);
+                                }
+                            }
+							else if(sendcmd.Contains("IsLinkRuUP"))
+                            {                                
+                                if (cmds.Length >= 2)
+                                {
+                                    result=this.RumasterIsLinkRuUP(cmds[1]);
+                                }
+                            }
+							else if(sendcmd.Contains("IsLinkRuUP2"))
+                            {                                
+                                if (cmds.Length >= 3)
+                                {
+                                    result=this.RumasterIsLinkRuUP2(cmds[1], cmds[2]);
+                                }
+                            }
+							else if(sendcmd.Contains("DeleteRuSector"))
+                            {                                
+                                if (cmds.Length >= 4)
+                                {
+                                    result=this.RumasterDeleteRuSector(cmds[1],cmds[2],cmds[3]);
+                                }
+                            }
+							else if(sendcmd.Contains("RestartRU"))
+                            {                                
+                                if (cmds.Length >= 4)
+                                {
+                                    result=this.RumasterRestartRU(cmds[1],cmds[2],cmds[3]);
+                                }
                             }
 
+						}
+                        else if (sendcmd.Contains("Trigger"))
+                        {
+							string[] cmds = sendcmd.Split('#');
+							if (sendcmd.Contains("SetupClockSource"))
+                            {                                
+                                if (cmds.Length >= 3)
+                                {
+                                    this.RumasterSetupClockTriggerSource(cmds[1],cmds[2]);
+                                }
+                            }
+							else if(sendcmd.Contains("SetupGammaSource"))
+                            {                                
+                                if (cmds.Length >= 2)
+                                {
+                                    this.RumasterSetupGammaTriggerSource(cmds[1]);
+                                }
+                            }
+							else if(sendcmd.Contains("SetCpriSource"))
+                            {                                
+                                if (cmds.Length >= 4)
+                                {
+                                    this.RumasterSetCpriTriggerSource(cmds[1],cmds[2],cmds[3]);
+                                }
+                            }
+							else if(sendcmd.Contains("SetupGsmFramesync"))
+                            {                                
+                                if (cmds.Length >= 9)
+                                {
+                                    this.RumasterSetupGsmFramesyncTrigger(cmds[1],cmds[2],cmds[3],cmds[4],cmds[5],cmds[6],cmds[7],cmds[8]);
+                                }
+                            }
+							else if(sendcmd.Contains("SetupCtt"))
+                            {                                
+                                if (cmds.Length >= 6)
+                                {
+                                    this.RumasterSetupCttTrigger(cmds[1],cmds[2],cmds[3],cmds[4],cmds[5]);
+                                }
+                            }
+							else if(sendcmd.Contains("SetupAdjustment"))
+                            {                                
+                                if (cmds.Length >= 5)
+                                {
+                                    this.RumasterSetupTriggerAdjustment(cmds[1],cmds[2],cmds[3],cmds[4]);
+                                }
+                            }
+							else if(sendcmd.Contains("SetupStatic"))
+                            {                                
+                                if (cmds.Length >= 4)
+                                {
+                                    this.RumasterSetupStaticTrigger(cmds[1],cmds[2],cmds[3]);
+                                }
+                            }
+							else if(sendcmd.Contains("GetStaticOutput"))
+                            {                                
+                                if (cmds.Length >= 2)
+                                {
+                                    result=this.RumasterGetTriggerStaticOutput(cmds[1]);
+                                }
+                            }
+							else if(sendcmd.Contains("GetAdjustment"))
+                            {                                
+                                if (cmds.Length >= 2)
+                                {
+                                    result=this.RumasterGetTriggerAdjustment(cmds[1]);
+                                }
+                            }
+                               
                         }
+
                     }
                     catch (Exception e)
                     {
                         this.tag_rumaster.BackColor = Color.Pink;
-                        WriteErrorText("Cpriflowdata start/stop failed! "+e.Message);
+                        WriteErrorText("Cpriflowdata start/stop failed! " + e.Message);
                     }
                 }
                 else
                 {
                     WriteTraceText("Please start rumaster first!");
                 }
-                    
-            }
-            else if (cmd.Contains("Process.Delay"))
-            {
-                WriteTraceText(cmd);
-                sendcmd = cmd.Replace("Process.Delay", "").TrimStart('(').TrimEnd(')');
-                try
-                {
-                    Thread.Sleep(int.Parse(sendcmd));
+
                 }
-                catch
+                else if (cmd.Contains("Process.Delay"))
                 {
-                    WriteTraceText("error on : " + cmd);
-                }
-            }
-            else if (cmd.Contains("SERIAL2."))          //serial 2
-            {
-                sendcmd = cmd.Replace("SERIAL2.", "").TrimStart(cl);
-                this.send_to_serial2(cmd);
-            }
-            else if(cmd.Contains("ts."))
-            {
-                WriteTraceText(cmd);
-                printtag = false;
-                
-                WriteTraceText(cmd);
-                //LogManager.WriteLog(LogFile.Trace, cmd);
-                string buttonname = cmd.Replace("ts.", "");
-                    
-                //get current tabs in mainform
-                foreach (NewTabPage ntp in this.tabControl1.TabPages)
-                {
-                    foreach (Control item in ntp.Controls)
+                    WriteTraceText(cmd);
+                    sendcmd = cmd.Replace("Process.Delay", "").TrimStart('(').TrimEnd(')');
+                    try
                     {
-                        if (item is TableLayoutPanel)
-                        {
-                            TableLayoutPanel layoutPanel = item as TableLayoutPanel;
-                            foreach (Control btn in layoutPanel.Controls)
-                            {
-                                if (btn is TabButton)
-                                {
-
-                                    TabButton button = btn as TabButton;
-                                    if (button.Name == buttonname)
-                                    {
-                                        _tscmd = button._data;
-                                        _tsthread = new Thread(new ThreadStart(tsListExecute));
-                                        _tsthread.Start();
-                                        if (delay != 0)
-                                            Thread.Sleep(delay);
-                                        else
-                                            Thread.Sleep(1000);
-                                        //_tsthread.Join();
-                                    }
-
-                                }
-                            }
-                        }
-
+                        Thread.Sleep(int.Parse(sendcmd));
                     }
-                    
-                        
+                    catch
+                    {
+                        WriteTraceText("error on : " + cmd);
+                    }
                 }
-                    
-            }
-            //send to rru
-            else
-            {
-                if(this.rruConnButton.CheckState== CheckState.Checked)
+                else if(cmd.Contains("Getprint.time"))
                 {
-
+                    WriteTraceText(cmd+" "+delay.ToString());
                     
                     printtag = false;
-                    //this.dataDisplayBox.AppendText(cmd+"123\n");
-                    //delay do not equal to 0, need to return result,start timer and return result
-                    if (delay != 0)
+                    this.socketTag = true;
+                    this.socketbuilder.Clear();
+                    Thread.Sleep(delay);
+
+                    string tempstr = this.socketbuilder.ToString();
+
+                    result = tempstr;
+                    this.socketTag = false;
+                    this.socketbuilder.Clear();
+                    
+                }
+                else if (cmd.Contains("SERIAL2."))          //serial 2
+                {
+                    sendcmd = cmd.Replace("SERIAL2.", "").TrimStart(cl);
+                    this.send_to_serial2(sendcmd);
+                }
+                else if (cmd.Contains("ts."))
+                {
+                    WriteTraceText(cmd);
+                    printtag = false;
+
+                    WriteTraceText(cmd);
+                    //LogManager.WriteLog(LogFile.Trace, cmd);
+                    string buttonname = cmd.Replace("ts.", "");
+
+                    //get current tabs in mainform
+                    foreach (NewTabPage ntp in this.tabControl1.TabPages)
                     {
-                        
-                        this.socketTag = true;
-                        this.socketbuilder.Clear();
-                        //socketprocesstimer.Interval = delay;
-                        //socketprocesstimer.Enabled = true;
-                        //socketprocesstimer.Elapsed += new System.Timers.ElapsedEventHandler(socketprocesstimer_Tick);
-                        //this.socketprocesstimer.Interval = delay;
-                        //this.socketprocesstimer.Start();
-                        for (int i = 0; i != 4; i++)
+                        foreach (Control item in ntp.Controls)
                         {
-                            if (_rrusend == _rruresp)
+                            if (item is TableLayoutPanel)
                             {
-                                this.send_to_rru(cmd, delay);
-                                break;
-                            }
-                            Thread.Sleep(300);
-                            if (i == 3)
-                                WriteTraceText("cmd can't be execute:" + cmd);
-                        }
-                        
-                        
-                        Thread.Sleep(delay);
-                        for (int i=0; i<5;i++)
-                        {
-                            string tempstr = this.socketbuilder.ToString();
-                            if (tempstr.TrimEnd().EndsWith("$"))
-                            {
-                                result = tempstr;
-                                this.socketTag = false;
-                                this.socketbuilder.Clear();
-                                WriteDebugText("resp result is: "+ result);
-                                break;
-                            }
-                            else
-                            {
-                                if(i!=4)
+                                TableLayoutPanel layoutPanel = item as TableLayoutPanel;
+                                foreach (Control btn in layoutPanel.Controls)
                                 {
-                                    Thread.Sleep(200*i);
-                                    continue;
+                                    if (btn is TabButton)
+                                    {
+
+                                        TabButton button = btn as TabButton;
+                                        if (button.Name == buttonname)
+                                        {
+                                            
+                                            if (button._data != null)
+                                            {
+                                                foreach (string tempcmd in button._data)
+                                                {
+                                                    if (tempcmd != "")
+                                                    {
+                                                        if(socket)
+                                                        {
+                                                            command_Process(tempcmd);
+                                                        }
+                                                        else
+                                                        {
+                                                            cmdQueue.Enqueue(tempcmd);
+                                                            _waitcmdQueueEventHandle.Set();
+                                                        }
+                                                        
+
+                                                    }
+
+                                                }
+                                            }
+                                            
+                                            
+                                            if (delay != 0)
+                                                Thread.Sleep(delay);
+                                            else
+                                                Thread.Sleep(1000);
+                                            //_tsthread.Join();
+                                        }
+
+                                    }
+                                }
+                            }
+
+                        }
+
+
+                    }
+
+                }
+                //send to rru
+                else
+                {
+                    if (this.rruConnButton.CheckState == CheckState.Checked)
+                    {
+
+
+                        printtag = false;
+                        WriteDebugText("into send to rru process...");
+
+                        //delay do not equal to 0, need to return result,start timer and return result
+                        if (delay != 0)
+                        {
+
+                            this.socketTag = true;
+                            this.socketbuilder.Clear();
+                            
+                            for (int i = 0; i != 4; i++)
+                            {
+                                if (_rrusend == _rruresp)
+                                {
+                                    if (_rrusend > 1000)
+                                    {
+                                        _rrusend = 0;
+                                        _rruresp = 0;
+                                    }
+                                    this.send_to_rru(cmd, delay);
+                                    break;
+                                }
+                                Thread.Sleep(100);
+                                if (i == 3)
+                                {
+                                    WriteDebugText("socket rru sync failed:" + cmd);
+                                    WriteDebugText("socket rru re-sync with :" + cmd);
+                                    
+                                    this.send_to_rru(cmd);
+
+                                    break;
+                                }
+
+                            }
+
+
+                            Thread.Sleep(delay);
+                            for (int i = 0; i < 5; i++)
+                            {
+                                string tempstr = this.socketbuilder.ToString();
+                                if (tempstr.TrimEnd().EndsWith("$"))
+                                {
+                                    result = tempstr;
+                                    this.socketTag = false;
+                                    this.socketbuilder.Clear();
+                                    WriteDebugText("resp result is: " + result);
+                                    break;
                                 }
                                 else
                                 {
-                                    
-                                    tempstr = this.socketbuilder.ToString();
-                                    result = tempstr;
-                                    WriteDebugText("socket result from rru: " + result);
-                                    if (result.Length == 0)
-                                        result = socketNoresult;
-                                    this.socketTag = false;
-                                    this.socketbuilder.Clear();
+                                    if (i < 4)
+                                    {
+                                        WriteDebugText("thread sleep: " +  i.ToString());
+                                        Thread.Sleep(600 * i);
+                                        continue;
+                                    }
+                                    else
+                                    {
+
+                                        WriteDebugText("22222222222: ");
+                                        result = this.socketbuilder.ToString();
+                                        WriteDebugText("socket result from rru: " + result);
+                                        if (result.Length == 0)
+                                            result = socketNoresult;
+                                        this.socketTag = false;
+                                        this.socketbuilder.Clear();
+                                        break;
+                                    }
+
+                                }
+
+                            }
+                            //this.socketTag = false;
+
+                            //this.socketbuilder.Clear();
+                        }
+                        else
+                        {
+                            for (int i = 0; i != 4; i++)
+                            {
+                                if (_rrusend == _rruresp)
+                                {
+                                    if (_rrusend > 1000)
+                                    {
+                                        _rrusend = 0;
+                                        _rruresp = 0;
+                                    }
+                                    this.send_to_rru(cmd);
+
                                     break;
                                 }
-                                
-                            }
-                                
-                        }
-                        //this.socketTag = false;
+                                Thread.Sleep(100);
+                                if (i == 3)
+                                {
+                                    WriteDebugText("rru sync failed:" + cmd);
+                                    WriteDebugText("rru re-sync with :" + cmd);
+                                    
+                                    this.send_to_rru(cmd);
 
-                        //this.socketbuilder.Clear();
+                                    break;
+                                }
+
+                            }
+
+                            result = socketNoresult;
+                        }
                     }
                     else
                     {
-                        for (int i = 0; i != 4; i++)
-                        {
-                            if (_rrusend == _rruresp)
-                            {
-                                if(_rrusend>1000)
-                                {
-                                    _rrusend = 0;
-                                    _rruresp = 0;
-                                }
-                                this.send_to_rru(cmd);
-                                
-                                break;
-                            }
-                            Thread.Sleep(200);
-                            if (i == 3)
-                                WriteTraceText("cmd can't be execute:" + cmd);
-                        }
-                        
+                        printtag = false;
+                        WriteTraceText("please connect rru first.");
+                        result = socketNorru;
+                    }
+
+                }
+                //print toscreen and log
+                //string logmsg = result.Trim();
+                if (printtag)
+                {
+
+
+                    if (result != string.Empty)
+                    {
+                        WriteTraceText(result);
+
+                    }
+                    else
+                    {
                         result = socketNoresult;
+
                     }
                 }
-                else
-                {
-                    printtag = false;
-                    WriteTraceText("please connect rru first.");
-                    result = socketNorru;
-                }
-
             }
-            //print toscreen and log
-            //string logmsg = result.Trim();
-            if (printtag)
-            {
-                
-                
-                if (result!=string.Empty)
-                {
-                    WriteTraceText(result);
-                    
-                }
-                else
-                {
-                    result = socketNoresult;
-
-                }    
-            }
-
+            WriteDebugText("result is: " + result);
             return result;
         }
         //rumaster start
@@ -2294,8 +2642,8 @@ namespace RTT
                 if (fsinfostr.Length >= 3)
                 {
                     gainData.GainEnable = boolDic[gainstr[0]];
-                    gainData.GainDb = byte.Parse(gainstr[1]);
-                    gainData.GainFact = byte.Parse(gainstr[2]);                    
+                    gainData.GainDb = double.Parse(gainstr[1]);
+                    gainData.GainFact = double.Parse(gainstr[2]);                    
                 }
 
                 CarrierData data = new CarrierData();
@@ -2404,6 +2752,252 @@ namespace RTT
                 WriteTraceText("Rumaster Set PllRef  failed!--" + e.Message);
             }           
         }
+        private void RumasterSetupGammaTriggerSource(string triggerPort)
+        {
+            try
+            {
+                rTriggerConfig.SetupGammaTriggerSource(triggerPort);
+            }
+            catch (Exception e)
+            {
+                WriteTraceText("Setup Gamma Trigger Source Failed!--" + e.Message);
+            }
+        }
+        private void RumasterSetupClockTriggerSource(string triggerPort, string instanceName)
+        {            
+            try
+            {
+                rTriggerConfig.SetupClockTriggerSource(triggerPort, clockInstanceNameDic[instanceName]);
+            }
+            catch (Exception e)
+            {
+                WriteTraceText("Rumaster Setup Clock Trigger Source  Failed!--" + e.Message);
+            }
+        }
+        private void RumasterSetCpriTriggerSource(string triggerPort, string cpriport, string cpriTriggerSource)
+        {
+            try
+            {
+                rTriggerConfig.SetCpriTriggerSource(triggerPort, cpriport, cpriTrigSourceDic[cpriTriggerSource]);
+            }
+            catch (Exception e)
+            {
+                WriteTraceText("Rumaster Set Cpri Trigger Source Failed!--" + e.Message);
+            }
+        }
+        private void RumasterSetupGsmFramesyncTrigger(string triggerPort, string cpriport, string hyperframe, string basicFrameOffset,string word,string basicframe,string pulseLengthIn13MHzCycles, string pulseOffset)
+        {
+            try
+            {
+                rTriggerConfig.SetupGsmFramesyncTrigger(triggerPort, cpriport, uint.Parse(hyperframe), uint.Parse(basicFrameOffset),uint.Parse(word), uint.Parse(basicframe), uint.Parse(pulseLengthIn13MHzCycles), uint.Parse(pulseOffset));
+            }
+            catch (Exception e)
+            {
+                WriteTraceText("Rumaster Set Cpri Trigger Source Failed!--" + e.Message);
+            }
+        }
+        private void RumasterSetupTriggerAdjustment(string triggerPort,string pulseOffset,string pulseWidth,string finePhaseAdjust)
+        {
+            try
+            {
+                rTriggerConfig.SetupTriggerAdjustment(triggerPort,int.Parse(pulseOffset),uint.Parse(pulseWidth),int.Parse(finePhaseAdjust));
+            }
+            catch (Exception e)
+            {
+                WriteTraceText("Rumaster Setup Trigger Adjustment Failed!--" + e.Message);
+            }
+        }
+        private void RumasterSetupStaticTrigger(string triggerPort, string level, string enabled)
+        {
+            try
+            {
+                rTriggerConfig.SetupStaticTrigger(triggerPort, triggerStaticOutputLevelDic[level], boolDic[enabled]);
+            }
+            catch (Exception e)
+            {
+                WriteTraceText("Rumaster Setup Static Trigger Failed!--" + e.Message);
+            }
+        }
+
+        private string RumasterGetTriggerStaticOutput(string triggerPort)
+        {
+            TriggerStaticOutputLevel level = TriggerStaticOutputLevel.low;
+            bool enabled = false;
+            string data = "";
+
+            try
+            {
+                rTriggerConfig.GetStaticOutput(triggerPort, out level, out enabled);
+                data = "leve=" + level.ToString() + SPACER_FLAG_SEC + "enabled=" + enabled.ToString();
+            }
+            catch (Exception e)
+            {
+                WriteTraceText("Rumaster Setup Static Trigger Failed!--" + e.Message);
+            }
+           
+            return data;
+        }
+        private string RumasterGetTriggerAdjustment(string triggerPort)
+        {            
+            int pulseOffset = 0;
+            uint pulseWidth = 0;
+            int finePhaseAdjust = 0;
+            string data = "";
+            try
+            {
+                rTriggerConfig.GetTriggerAdjustment(triggerPort, out pulseOffset, out pulseWidth, out finePhaseAdjust);
+                data = "pulseOffset=" + pulseOffset.ToString() + SPACER_FLAG_SEC + "pulseWidth=" + pulseWidth.ToString() + SPACER_FLAG_SEC + "finePhaseAdjust=" + finePhaseAdjust.ToString();
+            }
+            catch (Exception e)
+            {
+                WriteTraceText("Rumaster Get Trigger Adjustment Failed!--" + e.Message);
+            }
+
+            return data;
+        }
+        private void RumasterSetupCttTrigger(string triggerPort, string cpriPort, string filename,string useCttEnableTriggerSettings, string cttEnableTriggerArray)
+        {
+            
+            string[] triggerArraystr = cttEnableTriggerArray.Split(SPACER_FLAG_SEC);
+            int strlen = triggerArraystr.Length;
+            bool[] triggerArray = new bool[strlen];
+            for (int i = 0; i < strlen; i++)
+            {
+                triggerArray[i] = boolDic[triggerArraystr[i]];
+            }
+            try
+            {
+                rTriggerConfig.SetupCttTrigger(triggerPort, cpriPort, filename,boolDic[useCttEnableTriggerSettings], triggerArray);
+            }
+            catch (Exception e)
+            {
+                WriteTraceText("Rumaster Setup Ctt Trigger Failed!--" + e.Message);
+            }
+        }
+		private void RumasterUpgradeRU(string filename, string port, string physPos, string restart)
+        {
+            try
+            {
+                rIRULoader.UpgradeRU(filename,ulong.Parse(port),ulong.Parse(physPos),boolDic[restart]);
+            }
+            catch (Exception e)
+            {
+                WriteTraceText("Rumaster Upgrade RU Failed!--" + e.Message);
+            }
+        }
+		
+		private string RumasterUpgradeRUStatus()
+        {            
+            int statePercent = 0;            
+            string data = "";
+            try
+            {
+                rIRULoader.UpgradeRUStatus(out statePercent);
+                data = "statePercent=" + statePercent.ToString();
+            }
+            catch (Exception e)
+            {
+                WriteTraceText("Rumaster Get Upgrade RU Status Failed!--" + e.Message);
+            }
+
+            return data;
+        }
+        private string RumasterRuHwInfo(string port, string physPos)
+        {
+            string data = "";
+            try
+            {
+                data = rIRULoader.RuHwInfo(ulong.Parse(port), ulong.Parse(physPos));
+            }
+            catch (Exception e)
+            {
+                WriteTraceText("Rumaster Ru HwInfo Failed!--" + e.Message);
+            }
+            return data;
+        }
+        private string RumasterAsynchronousUpgradeRU(string filename,string port, string physPos,string restart)
+        {
+            string data = "";
+            try
+            {
+                data = rIRULoader.AsynchronousUpgradeRU(filename, ulong.Parse(port), ulong.Parse(physPos),boolDic[restart]).ToString();
+            }
+            catch (Exception e)
+            {
+                WriteTraceText("Rumaster Asynchronous Upgrade RU Failed!--" + e.Message);
+            }
+            return data;
+        }
+        private string RumasterIsLinkRuUP(string port)
+        {
+            string data = "";
+            try
+            {
+                data = rIRULoader.IsLinkRuUP(ulong.Parse(port)).ToString();
+            }
+            catch (Exception e)
+            {
+                WriteTraceText("Rumaster Is Link Ru UP Failed!--" + e.Message);
+            }
+            return data;
+        }
+
+        private string RumasterIsLinkRuUP2(string port,string physicalPosition)
+        {
+            string data = "";
+            try
+            {
+                data = rIRULoader.IsLinkRuUP2(ulong.Parse(port), ulong.Parse(physicalPosition)).ToString();
+            }
+            catch (Exception e)
+            {
+                WriteTraceText("Rumaster Is Link Ru UP2 Failed!--" + e.Message);
+            }
+            return data;
+        }
+
+        private string RumasterDeleteRuSector(string radioPid, string port, string physPos)
+        {
+            string data = "";
+            try
+            {
+                data = rIRULoader.DeleteRuSector(radioPid, ulong.Parse(port), ulong.Parse(physPos)).ToString();
+            }
+            catch (Exception e)
+            {
+                WriteTraceText("Rumaster Delete Ru Sector Failed!--" + e.Message);
+            }
+            return data;
+        }
+
+        private string RumasterRestartRU(string radioPid,string port, string physPos)
+        {
+            string data = "";
+            try
+            {
+                data = rIRULoader.RestartRU(radioPid,ulong.Parse(port), ulong.Parse(physPos)).ToString();
+            }
+            catch (Exception e)
+            {
+                WriteTraceText("Rumaster Restart RU Failed!--" + e.Message);
+            }
+            return data;
+        }
+
+        private string RumasterRuSwInfo(string port,string physPos)
+        {
+            string data = "";
+            try
+            {
+                data=rIRULoader.RuSwInfo(long.Parse(port),ulong.Parse(physPos));                
+            }
+            catch (Exception e)
+            {
+                WriteTraceText("Rumaster Ru SwInfo Failed!--" + e.Message);
+            }
+            return data;
+        }
+
         //timer tick
         //private void socketprocesstimer_Tick(object sender,EventArgs e)
         private void socketprocesstimer_Tick(object sender, System.Timers.ElapsedEventArgs e)
@@ -2435,7 +3029,7 @@ namespace RTT
                     {
                         //我们不管规则了。如果写错了一些，我们允许的，只用正则得到有效的十六进制数 
                         //cmdneedsend += "\r";
-                        MatchCollection mc = Regex.Matches(cmdneedsend, @"(?i)[/da-f]{2}");
+                        MatchCollection mc = Regex.Matches(cmd, @"(?i)[/da-f]{2}");
                         List<byte> buf = new List<byte>();//填充到这个临时列表中  
                                                           //依次添加到列表中  
                         foreach (Match m in mc)
@@ -2471,7 +3065,7 @@ namespace RTT
                         lock (_lock_COM2)
                         {
                             
-                            this._COM2.Write(cmdneedsend);
+                            this._COM2.Write(cmd);
                             WriteDebugText("write to com_2: " + cmdneedsend);
                             
                         }
@@ -2496,7 +3090,8 @@ namespace RTT
         //to rru 
         private void send_to_rru(string cmd="",int delay = 0)
         {
-            Thread.Sleep(100);
+            Thread.Sleep(200);
+            WriteDebugText("prepare to send cmd...");
             string cmdneedsend;
             if (cmd != "")
                 cmdneedsend = cmd;
@@ -2537,18 +3132,7 @@ namespace RTT
                 {
                     if(this._COM_RRU.IsOpen)
                     {
-                        //this.WriteTraceText("\n");
-                        //for (int i = 0; 1!=20;i++)
-                        //{
-                        //    if (!waitingForreceive)
-                        //    {
-                        //        Thread.Sleep(200);
-                        //    }
-                        //    else
-                        //    {
-                        //        break;
-                        //    }
-                        //}
+                        
                         
                         lock (_lock_RRUCOM)
                         {
@@ -2656,14 +3240,24 @@ namespace RTT
                             visa32.viClear(vi);
                             if (i != 4)
                             {
-                                Thread.Sleep(200);
+                                Thread.Sleep(i * 400);
                                 continue;
-                                
+
                             }
                             else
                             {
                                 WriteErrorText("read from instrument byvisa32 error : " + status.ToString());
-                                throw new Exception(status.ToString());
+                                if (vi == this.viSA)
+                                    this.CheckSessionbyVisa32(this.addr.SA, this.tag_sa, ref this.sesnSA, ref this.viSA);
+                                else
+                                    throw new Exception(status.ToString());
+                                status = visa32.viRead(vi, out strRd, 4069);
+                                if (status < visa32.VI_SUCCESS)
+                                {
+                                    throw new Exception(status.ToString());
+                                }
+                                else
+                                    break;
                             }
                             
                         }
@@ -2812,7 +3406,7 @@ namespace RTT
         private void ListenUDPClientConnect()
         {
             int recv;
-            byte[] data = new byte[1024];
+            byte[] data ;
             string recvStr = "";
             string response = "";
             byte[] resbyte;
@@ -2910,8 +3504,8 @@ namespace RTT
             try
             {
                 
-                   _shouldStop = true;
-                IPEndPoint ipep = new IPEndPoint(IPAddress.Parse("127.0.0.1"), 8001);
+                _shouldStop = true;
+                //IPEndPoint ipep = new IPEndPoint(IPAddress.Parse("127.0.0.1"), 8001);
                 Socket server = new Socket(AddressFamily.InterNetwork, SocketType.Dgram, ProtocolType.Udp);
                 string welcome = "";
                 data = Encoding.ASCII.GetBytes(welcome);
@@ -2972,9 +3566,46 @@ namespace RTT
             }));
             
         }
+        //=========================================================================================================
+        //write log to logfile and write print to remote display
+        //
+        //
+        //=========================================================================================================
+        public void WriteText_to_remote(string text)
+        {
+            this.Invoke((EventHandler)(delegate
+            {
 
+                this.Display_remote.AppendText(text);
+                if (this.checkBox_AutoscrollDown.Checked)
+                {
+                    this.Display_remote.ScrollToCaret();
+                }
+
+            }));
+        }
         
+        
+        public void WriteTraceText_to_remote(string text)
+        {
+            this.Invoke((EventHandler)(delegate
+            {
 
+                this.Display_remote.AppendText(text + '\n');
+                if (this.checkBox_AutoscrollDown.Checked)
+                {
+                    this.Display_remote.ScrollToCaret();
+                }
+                LogManager.WriteLog(LogFile.Trace, text);
+
+            }));
+        }
+        
+        //=========================================================================================================
+        //write log to logfile and write print to main display
+        //
+        //
+        //=========================================================================================================
         public void WriteText(string text)
         {
             this.Invoke((EventHandler)(delegate
@@ -3109,6 +3740,59 @@ namespace RTT
             _buttoncmd = null;
 
         }
+
+        //
+        private void scriptExecute()
+        {
+            if(script_repeat_times ==-1)
+            {
+                while(script_run)
+                {
+                    string[] cmdlist = scrip_cmd.Split('\n');
+                    foreach(string cmd in cmdlist)
+                    {
+                        command_Process(cmd);
+                    }
+                    
+                    if (script_interval != 0)
+                        Thread.Sleep(script_interval);
+                }
+            }
+            else
+            {
+                for(int i=0; i!=script_repeat_times;i++)
+                {
+                    if (!script_run)
+                        break;
+                    string[] cmdlist = scrip_cmd.Split('\n');
+                    foreach (string cmd in cmdlist)
+                    {
+                        command_Process(cmd);
+                    }
+                    
+                    if (script_interval != 0)
+                        Thread.Sleep(script_interval);
+                    
+                }
+            }
+        }
+
+        //sa capture thread
+        //private void saCaptureExecute()
+        //{
+        //    if (this.addr.SA != "")
+        //    {
+        //        if (this.VisaSwitch)   //only in visa32
+        //            this.SaCapture(captureName, captureDelay);
+        //        else
+        //            this.SaCapturebyVisacom(captureName, captureDelay);
+        //    }
+
+        //    else
+        //        WriteTraceText("Please setup SA address first!");
+
+        //}
+
         //ts execute process
         private void tsListExecute()
         {
@@ -3222,19 +3906,34 @@ namespace RTT
                 {
                     TabButton button = sender as TabButton;
                     List<string> data = button._data;
-                    _buttoncmd = data;
-                    _buttoncmdthread = new Thread(new ThreadStart(commandListExecute));
-                    _buttoncmdthread.Start();
-                    /*foreach (string cmd in data)
+                    
+                    if (data != null)
                     {
-                        if (cmd != "")
+                        foreach (string cmd in data)
                         {
-                            //this.sendCommand_to_Device(cmd);
-                            //this.button_command_process(cmd);
-                            this.command_Process(cmd);
-                            Thread.Sleep(300);
+                            if (cmd != "")
+                            {
+                                //sender to rru or device
+                                if (tabControl_display.SelectedTab == tab_main_display)
+                                {
+                                    cmdQueue.Enqueue(cmd);
+                                    _waitcmdQueueEventHandle.Set();
+                                    WriteDebugText(cmd);
+                                }
+                                //send to du
+                                else if (tabControl_display.SelectedTab == tabPage_remote)
+                                {
+                                    
+                                    Addhistory(cmd);
+                                    
+                                    t.Send(cmd);
+                                }
+                                
+
+                            }
                         }
-                    }*/
+                    }
+                   
                 }
                 
                 
@@ -3261,9 +3960,19 @@ namespace RTT
 
         private void MainForm_FormClosed(object sender, FormClosedEventArgs e)
         {
+            //terminate cmdprocessthread
+            cmdProcessThread_run = false;
+            cmdQueue.Enqueue("");
+            _waitcmdQueueEventHandle.Set();
+            _cmdProcessThread.Abort();
+
+            //stop RU Master
+            //if(_TCA_ON)
+            //    RumaControlClientFactory.StopDefaultTool();
+
             //save log
-            if(this._log)
-                LogManager.WriteLog(LogFile.Log, this.dataDisplayBox.Text);
+            //if (this._log)
+                //LogManager.WriteLog(LogFile.Log, this.dataDisplayBox.Text);
 
 
 
@@ -3290,14 +3999,14 @@ namespace RTT
             if(this._COM_RRU!=null)
             {
                 Close_serial_port();
-                
+                this._COM_RRU.Dispose();
                 this._COM_RRU = null;
             }
             //close serial 2 
             if (this._COM2 != null)
             {
                 Close_serial2_port();
-
+                this._COM2.Dispose();
                 this._COM2 = null;
             }
             
@@ -3335,6 +4044,8 @@ namespace RTT
                 //this._createServer.Join();
                 //this._createServer = null;
             }
+
+            
 
         }
 
@@ -3491,36 +4202,39 @@ namespace RTT
         private void button_clearscreen_Click(object sender, EventArgs e)
         {
             this.dataDisplayBox.Clear();
+            this.Display_remote.Clear();
         }
 
         private void menuSetup_Click(object sender, EventArgs e)
         {
             Address oldaddr = (Address)this.addr.Clone();
-            SetupForm sf = new SetupForm(this.addr);
+            SerialPortSetupForm sf = new SerialPortSetupForm(this.addr);
+            //SetupForm sf = new SetupForm(this.addr);
             if(sf.ShowDialog() == DialogResult.OK)
             {
-                if(sf.port_rru!="")
+                if(sf.localaddr.RRU != "")
                 {
-                    this.addr.RRU = sf.port_rru;
-                    this.addr.Baudrate_rru = sf.baudrate_rru;
+                    this.addr.RRU = sf.localaddr.RRU;
+                    this.addr.Baudrate_rru = sf.localaddr.Baudrate_rru;
                 }
-                if(sf.port_2!="")
+                if(sf.localaddr.SERIAL2 != "")
                 {
-                    this.addr.Baudrate_com2 = sf.baudrate_2;
-                    this.addr.SERIAL2 = sf.port_2;
+                    this.addr.Baudrate_com2 = sf.localaddr.Baudrate_com2;
+                    this.addr.SERIAL2 = sf.localaddr.SERIAL2;
                 }
                 
-                this.addr.SA = sf.localaddr.SA;
-                this.addr.SG = sf.localaddr.SG;
-                this.addr.SG2 = sf.localaddr.SG2;
-                this.addr.RFBOX = sf.localaddr.RFBOX;
-                this.addr.RFBOX2 = sf.localaddr.RFBOX2;
-                this.addr.IS1 = sf.localaddr.IS1;
-                this.addr.IS2 = sf.localaddr.IS2;
-                this.addr.DC5767A = sf.localaddr.DC5767A;
-                
-                
-                foreach(Control ctl in this.SerialpropertyBox.Controls)
+                //this.addr.SA = sf.localaddr.SA;
+                //this.addr.SG = sf.localaddr.SG;
+                //this.addr.SG2 = sf.localaddr.SG2;
+                //this.addr.RFBOX = sf.localaddr.RFBOX;
+                //this.addr.RFBOX2 = sf.localaddr.RFBOX2;
+                //this.addr.IS1 = sf.localaddr.IS1;
+                //this.addr.IS2 = sf.localaddr.IS2;
+                //this.addr.DC5767A = sf.localaddr.DC5767A;
+                //this.addr.Server_Port = sf.localaddr.Server_Port;
+                //ipep = new IPEndPoint(IPAddress.Any, int.Parse(this.addr.Server_Port));
+
+                foreach (Control ctl in this.SerialpropertyBox.Controls)
                 {
                     if(ctl.Name == "label_rruport")
                     {
@@ -3539,70 +4253,112 @@ namespace RTT
                         ctl.Text = this.addr.Baudrate_com2;
                     }
                 }
-                if (sf.port_rru != "")
+                if (this.addr.RRU != ""&& oldaddr.RRU!= this.addr.RRU)
                 {
                     
                     if (this._COM_RRU.IsOpen == true)
+                    {
+                        
+                        if (Close_serial_port())
                         {
+                            this._COM_RRU.PortName = this.addr.RRU;
+                            this._COM_RRU.BaudRate = int.Parse(this.addr.Baudrate_rru);
                             try
                             {
-                                Close_serial_port();
-                                //设定port,波特率,无检验位，8个数据位，1个停止位
-                                this._COM_RRU = new SerialPort(this.addr.RRU, int.Parse(this.addr.Baudrate_rru), Parity.None, 8, StopBits.One);
-                                this._COM_RRU.ReadBufferSize = 2048;
-                                this._COM_RRU.ReceivedBytesThreshold = 1;
-                                this._COM_RRU.NewLine = "\n";
-                                this._COM_RRU.RtsEnable = true;
-                                this._COM_RRU.DtrEnable = true;
-
-
                                 this._COM_RRU.Open();
-                                this._COM_RRU.DataReceived += new SerialDataReceivedEventHandler(Com_rru_DataReceived);
-                                this._COM_RRU.ErrorReceived += new SerialErrorReceivedEventHandler(Com_rru_ErrorReceived);
+                                this._COM_RRU.DiscardOutBuffer();
+                                this._COM_RRU.DiscardInBuffer();
                             }
-                            catch(Exception exp_rru)
+                            catch (Exception exp_rru)
                             {
                                 WriteErrorText("Serial port rru init error! please check serial infomation first. " + exp_rru.Message);
                             }
-                            
+                        }
+                        else
+                            WriteErrorText("Close serial port failed! Please stop serial port listening and re-setup serial port first!");
+                        //if (Close_serial_port())
+                        //{
+                        //    try
+                        //    {
+
+                        //        //设定port,波特率,无检验位，8个数据位，1个停止位
+                        //        this._COM_RRU = new SerialPort(this.addr.RRU, int.Parse(this.addr.Baudrate_rru), Parity.None, 8, StopBits.One);
+                        //        this._COM_RRU.ReadBufferSize = 2048;
+                        //        this._COM_RRU.ReceivedBytesThreshold = 1;
+                        //        this._COM_RRU.NewLine = "\n";
+                        //        this._COM_RRU.RtsEnable = true;
+                        //        this._COM_RRU.DtrEnable = true;
+
+                        //        this._COM_RRU.Open();
+                        //        this._COM_RRU.DiscardOutBuffer();
+                        //        this._COM_RRU.DiscardInBuffer();
+                        //        this._COM_RRU.DataReceived += new SerialDataReceivedEventHandler(Com_rru_DataReceived);
+                        //        this._COM_RRU.ErrorReceived += new SerialErrorReceivedEventHandler(Com_rru_ErrorReceived);
+                        //    }
+                        //    catch (Exception exp_rru)
+                        //    {
+                        //        WriteErrorText("Serial port rru init error! please check serial infomation first. " + exp_rru.Message);
+                        //    }
+                        //}
+                        //else
+                        //    WriteErrorText("Close serial port failed! Please stop serial port listening and re-setup serial port first!");
+
+
                     }
                                        
                 }
-                if (sf.port_2 != "")
+                if (this.addr.SERIAL2 != "" && oldaddr.SERIAL2 != this.addr.SERIAL2)
                 {
                     if (this._COM2.IsOpen == true)
                     {
-                        try {
-                            Close_serial2_port();
-                            //设定port,波特率,无检验位，8个数据位，1个停止位
-                            this._COM2 = new SerialPort(this.addr.SERIAL2, int.Parse(this.addr.Baudrate_com2), Parity.None, 8, StopBits.One);
-                            this._COM2.ReadBufferSize = 4096;
-                            this._COM2.ReceivedBytesThreshold = 1;
-                            this._COM2.NewLine = "\r";
-                            this._COM2.RtsEnable = true;
-                            this._COM2.DtrEnable = true;
+                        if (Close_serial_port())
+                        {
+                            this._COM2.PortName = this.addr.SERIAL2;
+                            this._COM2.BaudRate = int.Parse(this.addr.Baudrate_com2);
+                            try
+                            {
+                                this._COM2.Open();
+                                this._COM2.DiscardOutBuffer();
+                                this._COM2.DiscardInBuffer();
+                            }
+                            catch (Exception exp_rru)
+                            {
+                                WriteErrorText("Serial port 2 init error! please check serial infomation first. " + exp_rru.Message);
+                            }
+                        }
+                        else
+                            WriteErrorText("Close serial port 2 failed! Please stop serial port listening and re-setup serial port first!");
+                        //try {
+                        //    Close_serial2_port();
+                        //    //设定port,波特率,无检验位，8个数据位，1个停止位
+                        //    this._COM2 = new SerialPort(this.addr.SERIAL2, int.Parse(this.addr.Baudrate_com2), Parity.None, 8, StopBits.One);
+                        //    this._COM2.ReadBufferSize = 4096;
+                        //    this._COM2.ReceivedBytesThreshold = 1;
+                        //    this._COM2.NewLine = "\r";
+                        //    this._COM2.RtsEnable = true;
+                        //    this._COM2.DtrEnable = true;
 
 
-                            this._COM2.Open();
-                            this._COM2.DataReceived += new SerialDataReceivedEventHandler(Com_2_DataReceived);
-                            this._COM2.ErrorReceived += new SerialErrorReceivedEventHandler(Com2_ErrorReceived);
-                        }
-                        catch (Exception exp_com2) {
-                            WriteErrorText("Serial port 2 init error! please check serial infomation first. "+ exp_com2.Message);
-                        }
-                        
+                        //    this._COM2.Open();
+                        //    this._COM2.DataReceived += new SerialDataReceivedEventHandler(Com_2_DataReceived);
+                        //    this._COM2.ErrorReceived += new SerialErrorReceivedEventHandler(Com2_ErrorReceived);
+                        //}
+                        //catch (Exception exp_com2) {
+                        //    WriteErrorText("Serial port 2 init error! please check serial infomation first. "+ exp_com2.Message);
+                        //}
+
                     }
                     
                 }
                 
-                if(this.VisaSwitch) //true == visa32
-                {
-                    this.initInstrumentStatusbyVisa32(this.addr, oldaddr);
-                }
-                else
-                {
-                    this.initInstrumentStatus(this.addr, oldaddr);
-                }
+                //if(this.VisaSwitch) //true == visa32
+                //{
+                //    this.initInstrumentStatusbyVisa32(this.addr, oldaddr);
+                //}
+                //else
+                //{
+                //    this.initInstrumentStatus(this.addr, oldaddr);
+                //}
                 
 
                 //save address and port to config file
@@ -3633,7 +4389,7 @@ namespace RTT
             }
             else
             {
-                WriteTraceText("Please re-check the address :"+ addr);
+                WriteTraceText("Please re-check the address :"+ addr+ status.ToString());
                 instrtag.BackColor = Color.Pink;
             }
 
@@ -3679,7 +4435,8 @@ namespace RTT
             if (addr.SA != string.Empty)
             {
                 this.tag_sa.Visible = true;
-                this.CheckSession(addr.SA,  this.tag_sa, this.sa_rm, ref this.sa_sesn);
+                if (addr.SA != oldaddr.SA || init)
+                    this.CheckSession(addr.SA,  this.tag_sa, this.sa_rm, ref this.sa_sesn);
                 
             }
             else
@@ -3689,7 +4446,8 @@ namespace RTT
             if (addr.SG != string.Empty)
             {
                 this.tag_sg1.Visible = true;
-                this.CheckSession(addr.SG,  this.tag_sg1, this.sg_rm, ref this.sg_sesn);
+                if (addr.SG != oldaddr.SG || init)
+                    this.CheckSession(addr.SG,  this.tag_sg1, this.sg_rm, ref this.sg_sesn);
             }
             else
             {
@@ -3698,7 +4456,8 @@ namespace RTT
             if (addr.SG2 != string.Empty)
             {
                 this.tag_sg2.Visible = true;
-                this.CheckSession(addr.SG2,  this.tag_sg2, this.sg2_rm, ref this.sg2_sesn);
+                if (addr.SG2 != oldaddr.SG2 || init)
+                    this.CheckSession(addr.SG2,  this.tag_sg2, this.sg2_rm, ref this.sg2_sesn);
             }
             else
             {
@@ -3707,7 +4466,8 @@ namespace RTT
             if (addr.RFBOX != string.Empty)
             {
                 this.tag_rfbox1.Visible = true;
-                this.CheckSession(addr.RFBOX,  this.tag_rfbox1, this.rfbox_rm, ref this.rfbox_sesn);
+                if (addr.RFBOX != oldaddr.RFBOX || init)
+                    this.CheckSession(addr.RFBOX,  this.tag_rfbox1, this.rfbox_rm, ref this.rfbox_sesn);
             }
             else
             {
@@ -3716,7 +4476,8 @@ namespace RTT
             if (addr.RFBOX2 != string.Empty)
             {
                 this.tag_rfbox2.Visible = true;
-                this.CheckSession(addr.RFBOX2,  this.tag_rfbox2, this.rfbox2_rm, ref this.rfbox2_sesn);
+                if (addr.RFBOX2 != oldaddr.RFBOX2 || init)
+                    this.CheckSession(addr.RFBOX2,  this.tag_rfbox2, this.rfbox2_rm, ref this.rfbox2_sesn);
             }
             else
             {
@@ -3725,7 +4486,8 @@ namespace RTT
             if (addr.IS1 != string.Empty)
             {
                 this.tag_is1.Visible = true;
-                this.CheckSession(addr.IS1,  this.tag_is1, this.is_rm, ref this.is_sesn);
+                if (addr.IS1 != oldaddr.IS1 || init)
+                    this.CheckSession(addr.IS1,  this.tag_is1, this.is_rm, ref this.is_sesn);
             }
             else
             {
@@ -3734,7 +4496,8 @@ namespace RTT
             if (addr.IS2 != string.Empty)
             {
                 this.tag_is2.Visible = true;
-                this.CheckSession(addr.IS2,  this.tag_is2, this.is2_rm, ref this.is2_sesn);
+                if (addr.IS2 != oldaddr.IS2 || init)
+                    this.CheckSession(addr.IS2,  this.tag_is2, this.is2_rm, ref this.is2_sesn);
             }
             else
             {
@@ -3743,7 +4506,8 @@ namespace RTT
             if (addr.DC5767A != string.Empty)
             {
                 this.tag_DC5767A.Visible = true;
-                this.CheckSession(addr.DC5767A,  this.tag_DC5767A, this.dc5767a_rm, ref this.dc5767a_sesn);
+                if (addr.DC5767A != oldaddr.DC5767A || init)
+                    this.CheckSession(addr.DC5767A,  this.tag_DC5767A, this.dc5767a_rm, ref this.dc5767a_sesn);
             }
             else
             {
@@ -3761,7 +4525,8 @@ namespace RTT
             if(addr.SA!=string.Empty)
             {
                 this.tag_sa.Visible = true;
-                this.CheckSessionbyVisa32(addr.SA, this.tag_sa, ref this.sesnSA, ref this.viSA);
+                if(addr.SA != oldaddr.SA || init)
+                    this.CheckSessionbyVisa32(addr.SA, this.tag_sa, ref this.sesnSA, ref this.viSA);
             }
             else
             {
@@ -3770,7 +4535,8 @@ namespace RTT
             if (addr.SG != string.Empty)
             {
                 this.tag_sg1.Visible = true;
-                this.CheckSessionbyVisa32(addr.SG, this.tag_sg1, ref this.sesnSG, ref this.viSG);
+                if (addr.SG != oldaddr.SG || init)
+                    this.CheckSessionbyVisa32(addr.SG, this.tag_sg1, ref this.sesnSG, ref this.viSG);
             }
             else
             {
@@ -3779,7 +4545,8 @@ namespace RTT
             if (addr.SG2 != string.Empty)
             {
                 this.tag_sg2.Visible = true;
-                this.CheckSessionbyVisa32(addr.SG2, this.tag_sg2, ref this.sesnSG2, ref this.viSG2);
+                if (addr.SG2 != oldaddr.SG2 || init)
+                    this.CheckSessionbyVisa32(addr.SG2, this.tag_sg2, ref this.sesnSG2, ref this.viSG2);
             }
             else
             {
@@ -3788,7 +4555,8 @@ namespace RTT
             if (addr.RFBOX != string.Empty)
             {
                 this.tag_rfbox1.Visible = true;
-                this.CheckSessionbyVisa32(addr.RFBOX, this.tag_rfbox1, ref this.sesnRFBOX, ref this.viRFBOX);
+                if (addr.RFBOX != oldaddr.RFBOX || init)
+                    this.CheckSessionbyVisa32(addr.RFBOX, this.tag_rfbox1, ref this.sesnRFBOX, ref this.viRFBOX);
             }
             else
             {
@@ -3797,7 +4565,8 @@ namespace RTT
             if (addr.RFBOX2 != string.Empty)
             {
                 this.tag_rfbox2.Visible = true;
-                this.CheckSessionbyVisa32(addr.RFBOX2, this.tag_rfbox2, ref this.sesnRFBOX2, ref this.viRFBOX2);
+                if (addr.RFBOX2 != oldaddr.RFBOX2 || init)
+                    this.CheckSessionbyVisa32(addr.RFBOX2, this.tag_rfbox2, ref this.sesnRFBOX2, ref this.viRFBOX2);
             }
             else
             {
@@ -3806,7 +4575,8 @@ namespace RTT
             if (addr.IS1 != string.Empty)
             {
                 this.tag_is1.Visible = true;
-                this.CheckSessionbyVisa32(addr.IS1, this.tag_is1, ref this.sesnIS, ref this.viIS);
+                if (addr.IS1 != oldaddr.IS1 || init)
+                    this.CheckSessionbyVisa32(addr.IS1, this.tag_is1, ref this.sesnIS, ref this.viIS);
             }
             else
             {
@@ -3815,7 +4585,8 @@ namespace RTT
             if (addr.IS2 != string.Empty)
             {
                 this.tag_is2.Visible = true;
-                this.CheckSessionbyVisa32(addr.IS2, this.tag_is2, ref this.sesnIS2, ref this.viIS2);
+                if (addr.IS2 != oldaddr.IS2 || init)
+                    this.CheckSessionbyVisa32(addr.IS2, this.tag_is2, ref this.sesnIS2, ref this.viIS2);
             }
             else
             {
@@ -3824,7 +4595,8 @@ namespace RTT
             if (addr.DC5767A != string.Empty)
             {
                 this.tag_DC5767A.Visible = true;
-                this.CheckSessionbyVisa32(addr.DC5767A, this.tag_DC5767A, ref this.sesnDC5767A, ref this.viDC5767A);
+                if (addr.DC5767A != oldaddr.DC5767A || init)
+                    this.CheckSessionbyVisa32(addr.DC5767A, this.tag_DC5767A, ref this.sesnDC5767A, ref this.viDC5767A);
             }
             else
             {
@@ -3850,14 +4622,20 @@ namespace RTT
 
         private void SACAPTURE_Click(object sender, EventArgs e)
         {
-            if(this.VisaSwitch) //true == visa32
+            
+            if (this.addr.capture1 != string.Empty)
             {
-                this.SaCapture();
+                if (this.VisaSwitch) //true == visa32
+                {
+                    this.SaCapture(viCapture1);
+                }
+                else
+                {
+                    this.SaCapturebyVisacom(sesnCapture1);
+                }
             }
             else
-            {
-                this.SaCapturebyVisacom();
-            }
+                WriteTraceText("Please input capture1 address first!");
             
         }
 
@@ -3869,8 +4647,8 @@ namespace RTT
             
             if (this.dataDisplayBox.Lines.Length > 600)
             {
-                if(this._log)
-                    LogManager.WriteLog(LogFile.Log, this.dataDisplayBox.Text);
+                //if(this._log)
+                    //LogManager.WriteLog(LogFile.Log, this.dataDisplayBox.Text);
                 this.dataDisplayBox.Clear();
             }
             
@@ -3937,24 +4715,38 @@ namespace RTT
                     
 
                 }
-            
-            // Retrieve all running tool services. If no tool service is running - start a new tool
-                string[] uris = tsl.GetServiceList(ToolType.ID_RUMA);
-                string toolUri;
-                if (uris.Length == 1)
-                {
-                    toolUri = uris[0];
-                }
-                else if (uris.Length > 1)
-                {
-                    toolUri = uris[uris.Length - 1];
-                }
                 else
                 {
-                    toolUri = tsl.StartService(ToolType.ID_RUMA, hwSnrs[0]);
-                }
+                    string[] uris = tsl.GetServiceList(ToolType.ID_RUMA);
+                    string toolUri;
+                    WriteTraceText("uris is :"+ uris.Length.ToString());
+                    if (uris.Length == 1)
+                    {
+                        toolUri = uris[0];
+                    }
+                    else if (uris.Length > 1)
+                    {
+                        toolUri = uris[uris.Length - 1];
+                    }
+                    else
+                    {
+                        toolUri = tsl.StartService(ToolType.ID_RUMA, hwSnrs[0]);
+                    }
 
-                this.rumaClient = RumaControlClientFactory.Create(toolUri);
+                    this.rumaClient = RumaControlClientFactory.Create(toolUri);
+                    _TCA_ON = true;
+                    this.icdf = this.rumaClient.CpriDataFlow;
+                    this.rCarrierConfig = this.rumaClient.CarrierConfig;
+                    this.rCpriConfig = this.rumaClient.CpriConfig;
+                    this.rServerBase = this.rumaClient.PlatformUtilities;
+                    this.tag_rumaster.BackColor = Color.SpringGreen;
+                    this.rTriggerConfig = this.rumaClient.TriggerConfig;
+                    this.rIRULoader = this.rumaClient.OoM.RULoader;
+
+
+                }
+            // Retrieve all running tool services. If no tool service is running - start a new tool
+                
             //RUMA instance created, now start tool must be executed and resource needs to be allocated.
 
             //rumaClient.RuMaUtilities.SetCustomStartupParametersVee(selectedCpriPorts,
@@ -3982,11 +4774,7 @@ namespace RTT
             //                                                    allocateDebugPort);
 
 
-            this.icdf = this.rumaClient.CpriDataFlow;
-            this.rCarrierConfig = this.rumaClient.CarrierConfig;
-            this.rCpriConfig = this.rumaClient.CpriConfig;
-            this.rServerBase = this.rumaClient.PlatformUtilities;
-            this.tag_rumaster.BackColor = Color.SpringGreen;
+            
                 
                 
                 
@@ -4018,7 +4806,7 @@ namespace RTT
                     this._COM2 = new SerialPort(this.addr.SERIAL2, int.Parse(this.addr.Baudrate_com2), Parity.None, 8, StopBits.One);
                     this._COM2.ReadBufferSize = 2048;
                     this._COM2.ReceivedBytesThreshold = 1;
-                    this._COM2.NewLine = "\r";
+                    this._COM2.NewLine = "\n";
                     this._COM2.DtrEnable = true;
                     this._COM2.RtsEnable = true;
 
@@ -4057,7 +4845,7 @@ namespace RTT
 
         private void visaSwitchToolStripMenuItem_Click(object sender, EventArgs e)
         {
-            DebugForm df = new DebugForm();
+            DebugForm df = new DebugForm(this.VisaSwitch);
             if (df.ShowDialog() == DialogResult.OK)
             {
                 //this.dataDisplayBox.AppendText(df.visastatus+"\n");
@@ -4122,21 +4910,16 @@ namespace RTT
         private void radio_CR2_CheckedChanged(object sender, EventArgs e)
         {
             
-            this._com2trans = "\r";
-            
+            if(radio_LF2.Checked)
+                this._com2trans = "\r";
+            if(radio_CR2.Checked)
+                this._com2trans = "\n";
+            if(radioC_L2.Checked)
+                this._com2trans = "\r\n";
+
         }
 
-        private void radio_LF2_CheckedChanged(object sender, EventArgs e)
-        {
-            this._com2trans = "\n";
-            
-        }
-
-        private void radioC_L2_CheckedChanged(object sender, EventArgs e)
-        {
-            this._com2trans = "\r\n";
-            
-        }
+        
 
         private void historyBox_MouseDoubleClick(object sender, MouseEventArgs e)
         {
@@ -4260,12 +5043,14 @@ namespace RTT
             if (checkBox_Log.Checked)
             {
                 this._log = true;
-                WriteTraceText(" Full log On.");
+                LogManager.dateTag = true;
+                WriteTraceText("Date tag On.");
             }
             else
             {
                 this._log = false;
-                WriteTraceText("Full log Off.");
+                LogManager.dateTag = false;
+                WriteTraceText("Date tag Off.");
             }
         }
 
@@ -4292,6 +5077,71 @@ namespace RTT
                 WriteTraceText("update is running!");
             }
             
+        }
+        //============================================Script===============================================
+        private void button_start_Click(object sender, EventArgs e)
+        {
+            
+            
+            foreach (Control ctl in this.groupBox_script.Controls)
+            {
+                if (ctl.Name == "textBox_cmd")
+                {
+                    if (ctl.Text != "")
+                        scrip_cmd = ctl.Text;
+                    else
+                        scrip_cmd = "";
+                }
+                else if (ctl.Name == "textBox_rpt")
+                {
+                    if (ctl.Text != "")
+                    {
+                        try
+                        {
+                            script_repeat_times = int.Parse(ctl.Text);
+                        }
+                        catch(Exception ex)
+                        {
+                            WriteErrorText("Please input number into repeat time!");
+                        }
+                    }
+                        
+                    else
+                        script_repeat_times = -1;
+
+                }
+                else if(ctl.Name == "textBox_interval")
+                {
+                    if(ctl.Text!="")
+                    {
+                        script_interval = int.Parse(ctl.Text);
+                    }
+                    
+                }
+                
+            }
+            if(scrip_cmd=="")
+            {
+                WriteErrorText("Please input correct command into command textbox!");
+            }
+            else
+            {
+                
+                script_run = true;
+
+                
+                _scriptthread = new Thread(new ThreadStart(scriptExecute));
+                _scriptthread.Start();
+                
+                
+            }
+        }
+
+        private void button_stop_Click(object sender, EventArgs e)
+        {
+            script_run = false;
+            _scriptthread.Abort();
+
         }
 
 
@@ -4368,6 +5218,270 @@ namespace RTT
 
                 }
             }
+        }
+
+        //exchange log path
+        private void checkBox_secondary_CheckedChanged(object sender, EventArgs e)
+        {
+            if(checkBox_secondary.Checked)
+            {
+                _snapPath = localpath + @"\snapshot\";
+                if (!Directory.Exists(_snapPath))
+                    Directory.CreateDirectory(_snapPath);
+
+                _rxevmPath = localpath + @"\rxevm\";
+                if (!Directory.Exists(_rxevmPath))
+                    Directory.CreateDirectory(_rxevmPath);
+
+                logPath = localpath + @"\log\";
+                if (!Directory.Exists(logPath))
+                    Directory.CreateDirectory(logPath);
+                LogManager.LogPath = logPath;
+            }
+            else
+            {
+                _snapPath = mainpath + @"snapshot\";
+                if (!Directory.Exists(_snapPath))
+                    Directory.CreateDirectory(_snapPath);
+
+                _rxevmPath = mainpath + @"rxevm\";
+                if (!Directory.Exists(_rxevmPath))
+                    Directory.CreateDirectory(_rxevmPath);
+
+                logPath = mainpath + @"log\";
+                if (!Directory.Exists(logPath))
+                    Directory.CreateDirectory(logPath);
+                LogManager.LogPath = logPath;
+            }
+        }
+
+        private void serial2_pow_on_Click(object sender, EventArgs e)
+        {
+            command_Process("DC5767A.OUT1");
+        }
+
+        private void serial2_pow_off_Click(object sender, EventArgs e)
+        {
+            command_Process("DC5767A.OUT0");
+        }
+
+
+        //open Visa Device setup form
+        private void visaDeviceToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            Address oldaddr = (Address)this.addr.Clone();
+            VisaDeviceSetupForm sf = new VisaDeviceSetupForm(this.addr);
+            if (sf.ShowDialog() == DialogResult.OK)
+            {
+                
+
+                this.addr.SA = sf.localaddr.SA;
+                this.addr.SG = sf.localaddr.SG;
+                this.addr.SG2 = sf.localaddr.SG2;
+                this.addr.RFBOX = sf.localaddr.RFBOX;
+                this.addr.RFBOX2 = sf.localaddr.RFBOX2;
+                this.addr.IS1 = sf.localaddr.IS1;
+                this.addr.IS2 = sf.localaddr.IS2;
+                this.addr.DC5767A = sf.localaddr.DC5767A;
+                this.addr.capture1 = sf.localaddr.capture1;
+                this.addr.capture2 = sf.localaddr.capture2;
+
+                if (this.VisaSwitch) //true == visa32
+                {
+                    this.initInstrumentStatusbyVisa32(this.addr, oldaddr);
+                }
+                else
+                {
+                    this.initInstrumentStatus(this.addr, oldaddr);
+                }
+
+                
+                //SA
+                if (this.addr.capture1 == Constant.VISADEVICE_LIST[0])
+                    viCapture1 = viSA;
+                //SG1
+                else if (this.addr.capture1 == Constant.VISADEVICE_LIST[1])
+                    viCapture1 = viSG;
+                //SG2
+                else if (this.addr.capture1 == Constant.VISADEVICE_LIST[2])
+                    viCapture1 = viSG2;
+                //RFBOX1
+                else if (this.addr.capture1 == Constant.VISADEVICE_LIST[3])
+                    viCapture1 = viRFBOX;
+                //RFBOX2
+                else if (this.addr.capture1 == Constant.VISADEVICE_LIST[4])
+                    viCapture1 = viRFBOX2;
+                //DC5767A
+                else if (this.addr.capture1 == Constant.VISADEVICE_LIST[5])
+                    viCapture1 = viDC5767A;
+                //ISG1
+                else if (this.addr.capture1 == Constant.VISADEVICE_LIST[6])
+                    viCapture1 = viIS;
+                //ISG2
+                else if (this.addr.capture1 == Constant.VISADEVICE_LIST[7])
+                    viCapture1 = viIS2;
+                
+                
+                //SA
+                if (this.addr.capture2 == Constant.VISADEVICE_LIST[0])
+                    viCapture2 = viSA;
+                //SG1
+                else if (this.addr.capture2 == Constant.VISADEVICE_LIST[1])
+                    viCapture2 = viSG;
+                //SG2
+                else if (this.addr.capture2 == Constant.VISADEVICE_LIST[2])
+                    viCapture2 = viSG2;
+                //RFBOX1
+                else if (this.addr.capture2 == Constant.VISADEVICE_LIST[3])
+                    viCapture2 = viRFBOX;
+                //RFBOX2
+                else if (this.addr.capture2 == Constant.VISADEVICE_LIST[4])
+                    viCapture2 = viRFBOX2;
+                //DC5767A
+                else if (this.addr.capture2 == Constant.VISADEVICE_LIST[5])
+                    viCapture2 = viDC5767A;
+                //ISG1
+                else if (this.addr.capture2 == Constant.VISADEVICE_LIST[6])
+                    viCapture2 = viIS;
+                //ISG2
+                else if (this.addr.capture2 == Constant.VISADEVICE_LIST[7])
+                    viCapture2 = viIS2;
+                //save address and port to config file
+
+                ConfigHelper ch = new ConfigHelper();
+                Dictionary<string, string> adds = this.addr.UpdateAddress();
+                ch.UpdateAddr(adds);
+
+                sf.Close();
+            }
+        }
+        //not use
+        private void toolStripButton_capture2_Click(object sender, EventArgs e)
+        {
+            if (this.addr.capture2 != string.Empty)
+            {
+                if (this.VisaSwitch) //true == visa32
+                {
+                    this.SaCapture(viCapture2);
+                }
+                else
+                {
+                    this.SaCapturebyVisacom(sesnCapture1);
+                }
+            }
+            else
+                WriteTraceText("Please input capture2 address first!");
+        }
+        private void capture1(string filename = "")
+        {
+            if (this.addr.capture1 != string.Empty)
+            {
+                if (this.VisaSwitch) //true == visa32
+                {
+                    this.SaCapture(viCapture1, filename);
+                }
+                else
+                {
+                    this.SaCapturebyVisacom(sesnCapture1, filename);
+                }
+            }
+            else
+                WriteTraceText("Please input capture1 address first!");
+        }
+        private void capture2(string filename="")
+        {
+            if (this.addr.capture2 != string.Empty)
+            {
+                if (this.VisaSwitch) //true == visa32
+                {
+                    this.SaCapture(viCapture2,filename);
+                }
+                else
+                {
+                    this.SaCapturebyVisacom(sesnCapture2,filename);
+                }
+            }
+            else
+                WriteTraceText("Please input capture2 address first!");
+        }
+
+        private void toolStripButton_capture2_MouseDown(object sender, MouseEventArgs e)
+        {
+            //按鼠标右键，弹出菜单   
+            if (e.Button == System.Windows.Forms.MouseButtons.Right)
+            {
+                CaptureFilenameConfirmForm cf = new CaptureFilenameConfirmForm();
+                if(cf.ShowDialog() == DialogResult.OK)
+                {
+                    
+                    capture2(cf.filename);
+                }
+            }
+            else if(e.Button == System.Windows.Forms.MouseButtons.Left)
+            {
+               
+                capture2();
+            }
+        }
+
+        private void SACAPTURE_MouseDown(object sender, MouseEventArgs e)
+        {
+            //按鼠标右键，弹出菜单   
+            if (e.Button == System.Windows.Forms.MouseButtons.Right)
+            {
+                CaptureFilenameConfirmForm cf = new CaptureFilenameConfirmForm();
+                if (cf.ShowDialog() == DialogResult.OK)
+                {
+                    
+                    capture1(cf.filename);
+                }
+            }
+            else if (e.Button == System.Windows.Forms.MouseButtons.Left)
+            {
+                
+                capture1();
+            }
+        }
+
+        private void otherDeviceToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            Address oldaddr = (Address)this.addr.Clone();
+            OtherDeviceForm sf = new OtherDeviceForm(this.addr);
+            if (sf.ShowDialog() == DialogResult.OK)
+            {
+                
+                this.addr.Server_Port = sf.localaddr.Server_Port;
+                if(sf.localaddr.DU_IP != String.Empty)
+                {
+                    label_terminal_IP.Text = sf.localaddr.DU_IP;
+                    this.addr.DU_IP = sf.localaddr.DU_IP;
+                }
+                //save address and port to config file
+
+                ConfigHelper ch = new ConfigHelper();
+                Dictionary<string, string> adds = this.addr.UpdateAddress();
+                ch.UpdateAddr(adds);
+
+                sf.Close();
+            }
+        }
+
+        //telnet
+        //private async void toolStripButton_telnet_Click(object sender, EventArgs e)
+        private  void toolStripButton_telnet_Click(object sender, EventArgs e)
+        {
+            //du = new Tcpclient(this.addr.DU_IP, 23);
+            //string print = await du.Read();
+
+
+            t = new Telnet();
+
+            t.writereceive = WriteTraceText_to_remote;
+            t.doSocket(this.addr.DU_IP, 23);
+            //WriteTraceText_to_remote(print);
+            //Telnet p1 = new Telnet("147.128.108.73", "hwg", "123456");
+            //p1.Connect();
+
         }
 
         private void historyBox_SelectedIndexChanged(object sender, EventArgs e)
@@ -4450,7 +5564,31 @@ namespace RTT
 
         private void DeleteTab_Click(object sender, EventArgs e)
         {
-            this.tabControl1.TabPages.Remove(this.tabControl1.SelectedTab);
+            //消息框中需要显示哪些按钮，此处显示“确定”和“取消”
+
+            MessageBoxButtons messButton = MessageBoxButtons.OKCancel;
+
+            //"确定要退出吗？"是对话框的显示信息，"退出系统"是对话框的标题
+
+            //默认情况下，如MessageBox.Show("确定要退出吗？")只显示一个“确定”按钮。
+            DialogResult dr = MessageBox.Show("Confirm to delete Tab : "+ this.tabControl1.SelectedTab.Name+" ?", "Delete Tab", messButton);
+
+            if (dr == DialogResult.OK)//如果点击“确定”按钮
+
+            {
+
+                this.tabControl1.TabPages.Remove(this.tabControl1.SelectedTab);
+
+            }
+
+            else//如果点击“取消”按钮
+
+            {
+
+ 
+
+            }
+            
         }
 
         private void backColorSettingToolStripMenuItem_Click(object sender, EventArgs e)
@@ -4552,7 +5690,29 @@ namespace RTT
             }
             
         }
+        //==============================================cmd process queue solution=============================
+        private void cmdProcessThread()
+        {
+            while(true)
+            {
+                _waitcmdQueueEventHandle.WaitOne();
+                if(!cmdProcessThread_run)
+                {
+                    break;
+                }
+                while (cmdQueue.Count > 0)
+                {
+                    Thread.Sleep(350);
+                    string cmd = cmdQueue.Dequeue().ToString();
+                    WriteDebugText("cmdProcessThread process cmd:" + cmd);
 
+                    command_Process(cmd);
+                    
+                }
+            }
+            
+            
+        }
         
 
         
@@ -4570,9 +5730,13 @@ namespace RTT
         public string SG2 = "";
         public string RFBOX = "";
         public string RFBOX2 = "";
-        public string RUMASTER = "";
+        public string DU_IP = "";
+
         public string IS1 = "";
         public string IS2 = "";
+        public string Server_Port = "";
+        public string capture1 = "";
+        public string capture2 = "";
 
         public object Clone()
         {
@@ -4587,18 +5751,20 @@ namespace RTT
             this.IS2 = addrdic[Constant.DEVICE_NAME_INTERFERENCE_SIGNAL_2];
             this.RFBOX = addrdic[Constant.DEVICE_NAME_RFBOX];
             this.RFBOX2 = addrdic[Constant.DEVICE_NAME_RFBOX2];
-            this.RUMASTER = addrdic[Constant.DEVICE_NAME_RuMaster];
+            
             this.SA = addrdic[Constant.DEVICE_NAME_SIGNALANALYZER];
             this.SG = addrdic[Constant.DEVICE_NAME_SIGNALGENERATOR];
             this.SG2 = addrdic[Constant.DEVICE_NAME_SIGNALGENERATOR2];
             this.RRU = addrdic["port_rru"];
             this.Baudrate_rru = addrdic["baudrate_rru"];
+            this.Server_Port = addrdic["server_port"];
+            this.DU_IP = addrdic["Du_ip"];
             //if(this.RRU!=""&&this.Baudrate_rru!="")
             //{
             //    link.set_port1(this.RRU, this.Baudrate_rru, "", "8", "1");
             //}
-            
-            
+
+
             //this.SERIAL2 = addrdic[Constant.DEVICE_NAME_DC_DH1716A];
         }
 
@@ -4610,12 +5776,14 @@ namespace RTT
             addrdic[Constant.DEVICE_NAME_INTERFERENCE_SIGNAL_2]=this.IS2;
             addrdic[Constant.DEVICE_NAME_RFBOX]=this.RFBOX;
             addrdic[Constant.DEVICE_NAME_RFBOX2]=this.RFBOX2;
-            addrdic[Constant.DEVICE_NAME_RuMaster]=this.RUMASTER;
+            
             addrdic[Constant.DEVICE_NAME_SIGNALANALYZER]=this.SA;
             addrdic[Constant.DEVICE_NAME_SIGNALGENERATOR]= this.SG;
             addrdic[Constant.DEVICE_NAME_SIGNALGENERATOR2]= this.SG2;
             addrdic["port_rru"] = this.RRU;
             addrdic["baudrate_rru"] = this.Baudrate_rru;
+            addrdic["server_port"] = this.Server_Port;
+            addrdic["Du_ip"] = this.DU_IP;
             //addrdic[Constant.DEVICE_NAME_DC_DH1716A]= this.SERIAL2;
             return addrdic;
         }

@@ -13,9 +13,15 @@ namespace RTT
     public partial class DebugForm : Form
     {
         public string visastatus = "visa32";
-        public DebugForm()
+        public DebugForm(bool status)
         {
             InitializeComponent();
+            if (status)
+                //visastatus = "visa32";
+                radiovisa32.Select();
+            else
+                //visastatus = "visacom";
+                radiovisacom.Select();
         }
 
         private void button_cancel_Click(object sender, EventArgs e)

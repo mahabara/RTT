@@ -119,6 +119,13 @@
     <Compile Include="ButtonDataForm.Designer.cs">
       <DependentUpon>ButtonDataForm.cs</DependentUpon>
     </Compile>
+    <Compile Include="CaptureFilenameConfirmForm.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="CaptureFilenameConfirmForm.Designer.cs">
+      <DependentUpon>CaptureFilenameConfirmForm.cs</DependentUpon>
+    </Compile>
+    <Compile Include="CommandQueueEvent.cs" />
     <Compile Include="DebugForm.cs">
       <SubType>Form</SubType>
     </Compile>
@@ -141,6 +148,18 @@
     <Compile Include="MyTabControl.cs">
       <SubType>Component</SubType>
     </Compile>
+    <Compile Include="OtherDeviceForm.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="OtherDeviceForm.Designer.cs">
+      <DependentUpon>OtherDeviceForm.cs</DependentUpon>
+    </Compile>
+    <Compile Include="SensitivityForm.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="SensitivityForm.Designer.cs">
+      <DependentUpon>SensitivityForm.cs</DependentUpon>
+    </Compile>
     <Compile Include="SerialPortUtil.cs" />
     <Compile Include="SetupForm.cs">
       <SubType>Form</SubType>
@@ -149,6 +168,8 @@
       <DependentUpon>SetupForm.cs</DependentUpon>
     </Compile>
     <Compile Include="SocketServer.cs" />
+    <Compile Include="Tcpclient.cs" />
+    <Compile Include="Telnet.cs" />
     <Compile Include="TsFileHelper.cs" />
     <Compile Include="ConfigHelper.cs" />
     <Compile Include="Constant.cs" />
@@ -164,11 +185,11 @@
     <Compile Include="MainForm.Designer.cs">
       <DependentUpon>MainForm.cs</DependentUpon>
     </Compile>
-    <Compile Include="InstrumentSetupForm.cs">
+    <Compile Include="VisaDeviceSetupForm.cs">
       <SubType>Form</SubType>
     </Compile>
-    <Compile Include="InstrumentSetupForm.Designer.cs">
-      <DependentUpon>InstrumentSetupForm.cs</DependentUpon>
+    <Compile Include="VisaDeviceSetupForm.Designer.cs">
+      <DependentUpon>VisaDeviceSetupForm.cs</DependentUpon>
     </Compile>
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
@@ -180,6 +201,9 @@
     <EmbeddedResource Include="ButtonDataForm.resx">
       <DependentUpon>ButtonDataForm.cs</DependentUpon>
     </EmbeddedResource>
+    <EmbeddedResource Include="CaptureFilenameConfirmForm.resx">
+      <DependentUpon>CaptureFilenameConfirmForm.cs</DependentUpon>
+    </EmbeddedResource>
     <EmbeddedResource Include="DebugForm.resx">
       <DependentUpon>DebugForm.cs</DependentUpon>
     </EmbeddedResource>
@@ -189,14 +213,20 @@
     <EmbeddedResource Include="ModifyTabnameform.resx">
       <DependentUpon>ModifyTabnameform.cs</DependentUpon>
     </EmbeddedResource>
+    <EmbeddedResource Include="OtherDeviceForm.resx">
+      <DependentUpon>OtherDeviceForm.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="SensitivityForm.resx">
+      <DependentUpon>SensitivityForm.cs</DependentUpon>
+    </EmbeddedResource>
     <EmbeddedResource Include="SerialPortSetupForm.resx">
       <DependentUpon>SerialPortSetupForm.cs</DependentUpon>
     </EmbeddedResource>
     <EmbeddedResource Include="MainForm.resx">
       <DependentUpon>MainForm.cs</DependentUpon>
     </EmbeddedResource>
-    <EmbeddedResource Include="InstrumentSetupForm.resx">
-      <DependentUpon>InstrumentSetupForm.cs</DependentUpon>
+    <EmbeddedResource Include="VisaDeviceSetupForm.resx">
+      <DependentUpon>VisaDeviceSetupForm.cs</DependentUpon>
     </EmbeddedResource>
     <EmbeddedResource Include="Properties\Resources.resx">
       <Generator>ResXFileCodeGenerator</Generator>

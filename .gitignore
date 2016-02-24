@@ -1,3 +1,11 @@
+#test
+.ts
+.log
+.obj
+.exe
+.dll
+.pdb
+
 # Windows image file caches
 Thumbs.db
 ehthumbs.db
@@ -41,3 +49,27 @@ $RECYCLE.BIN/
 Network Trash Folder
 Temporary Items
 .apdisk
+
+*.rar
+*.dll
+obj/Debug/RTT.pdb
+*.exe
+*.pdb
+bin/Debug/default.ts
+*.Log
+*.Config
+bin/Debug/WindowsFormsApplication1.vshost.exe.manifest
+*.ts
+*.txt
+*.manifest
+bin/x86/20M_30.72_3.3/20M_30.72_3.3.cdl3
+*.xml
+bin/x86/Release/rtpclient.py
+*.bak
+obj/Debug/DesignTimeResolveAssemblyReferences.cache
+*.cache
+obj/Debug/RTT.ButtonDataForm.resources
+*.resources
+obj/Debug/TemporaryGeneratedFile_036C0B5B-1481-4323-8D20-8F5ADCB23D92.cs
+obj/Debug/TemporaryGeneratedFile_5937a670-0e60-4077-877b-f7221da3dda1.cs
+obj/x86/Debug/TemporaryGeneratedFile_5937a670-0e60-4077-877b-f7221da3dda1.cs

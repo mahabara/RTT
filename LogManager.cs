@@ -10,6 +10,8 @@ namespace RTT
     {
         
         private static string logPath = string.Empty;
+        public static bool dateTag = true;
+
         /// <summary>
         /// 保存日志的文件夹
         /// </summary>
@@ -50,7 +52,10 @@ namespace RTT
                     LogPath + LogFielPrefix + logFile + " " +
                     DateTime.Now.ToString("yyyyMMddHHMM") + ".Log"
                     );
-                    sw.WriteLine(DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss: ") + msg);
+                    if(dateTag)
+                        sw.WriteLine(DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss: ") + msg);
+                    else
+                        sw.WriteLine(msg);
                     sw.Close();
                 }
                 else
@@ -59,7 +64,10 @@ namespace RTT
                     LogPath + LogFielPrefix + LogFile.Trace.ToString() + " " +
                     DateTime.Now.ToString("yyyyMMddHHMM") + ".Log"
                     );
-                    sw.WriteLine(DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss: ") + logFile +" - "+ msg);
+                    if (dateTag)
+                        sw.WriteLine(DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss: ") + logFile +" - "+ msg);
+                    else
+                        sw.WriteLine(logFile + " - " + msg);
                     sw.Close();
                 }
                 

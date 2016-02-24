@@ -48,6 +48,20 @@ namespace RTT
         //send device list
         public static string[] DEVICE_LIST = { "RRU", "SA", "SG1", "SG2", "RFBOX1", "RFBOX2", "DC5767A", "ISG1", "ISG2", "SERIAL2", "RUMASTER" };
 
+        //Visadevice list
+        public static string[] VISADEVICE_LIST = { "SA", "SG1", "SG2", "RFBOX1", "RFBOX2", "DC5767A", "ISG1", "ISG2" };
+        public enum VISADEVICE_ENUM
+        {
+            SA = 1,
+            SG = 2,
+            SG2 = 3,
+            RFBOX1 = 4,
+            RFBOX2 = 5,
+            DC5767A = 6,
+            ISG1 = 7,
+            ISG2 = 8
+
+        }
         //socket server port
         public const int HOSTPORT = 8001;
     }

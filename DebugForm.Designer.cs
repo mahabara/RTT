@@ -62,9 +62,9 @@
             // 
             // button_ok
             // 
-            this.button_ok.Location = new System.Drawing.Point(123, 227);
+            this.button_ok.Location = new System.Drawing.Point(47, 67);
             this.button_ok.Name = "button_ok";
-            this.button_ok.Size = new System.Drawing.Size(75, 23);
+            this.button_ok.Size = new System.Drawing.Size(61, 23);
             this.button_ok.TabIndex = 2;
             this.button_ok.Text = "OK";
             this.button_ok.UseVisualStyleBackColor = true;
@@ -72,9 +72,9 @@
             // 
             // button_cancel
             // 
-            this.button_cancel.Location = new System.Drawing.Point(204, 227);
+            this.button_cancel.Location = new System.Drawing.Point(114, 67);
             this.button_cancel.Name = "button_cancel";
-            this.button_cancel.Size = new System.Drawing.Size(75, 23);
+            this.button_cancel.Size = new System.Drawing.Size(60, 23);
             this.button_cancel.TabIndex = 3;
             this.button_cancel.Text = "Cancel";
             this.button_cancel.UseVisualStyleBackColor = true;
@@ -86,7 +86,7 @@
             this.groupBox1.Controls.Add(this.radiovisa32);
             this.groupBox1.Location = new System.Drawing.Point(12, 12);
             this.groupBox1.Name = "groupBox1";
-            this.groupBox1.Size = new System.Drawing.Size(144, 49);
+            this.groupBox1.Size = new System.Drawing.Size(162, 49);
             this.groupBox1.TabIndex = 4;
             this.groupBox1.TabStop = false;
             this.groupBox1.Text = "visa select";
@@ -95,7 +95,7 @@
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            this.ClientSize = new System.Drawing.Size(284, 262);
+            this.ClientSize = new System.Drawing.Size(187, 101);
             this.Controls.Add(this.groupBox1);
             this.Controls.Add(this.button_cancel);
             this.Controls.Add(this.button_ok);

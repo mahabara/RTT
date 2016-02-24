@@ -34,11 +34,13 @@ namespace RTT
         public string IS1 = "";
         public string IS2 = "";
         public string DC5767A = "";
+        public string Du_ip = "";
 
         public Address localaddr = new Address();
         public SetupForm(Address addr)
         {
             InitializeComponent();
+
             if (addr != null)
             {
                 this.localaddr = addr;
@@ -49,9 +51,9 @@ namespace RTT
                 this.textBox5.Text = this.localaddr.RFBOX2;
                 this.textBox6.Text = this.localaddr.IS1;
                 this.textBox7.Text = this.localaddr.IS2;
-                this.textBox8.Text = this.localaddr.RUMASTER;
+                this.textBox_du_ip.Text = this.localaddr.DU_IP;
                 this.textBox9.Text = this.localaddr.DC5767A;
-                
+                this.textBox_Server_Port.Text = this.localaddr.Server_Port;
 
             }
         }
@@ -142,31 +144,32 @@ namespace RTT
 
             localaddr.IS2 = this.textBox7.Text;
 
-            localaddr.RUMASTER = this.textBox8.Text;
+            localaddr.Server_Port = this.textBox_Server_Port.Text;
 
             localaddr.DC5767A = this.textBox9.Text;
+            localaddr.DU_IP = this.textBox_du_ip.Text;
             
             
             if (comboBox1.SelectedItem != null)
             {
-                //localaddr.RRU = comboBox1.SelectedText;
-                this.port_rru = comboBox1.SelectedItem.ToString();
-                //localaddr.Baudrate_rru = comboBox2.SelectedText;
-                this.baudrate_rru = comboBox2.SelectedItem.ToString();
-                this.parity_rru = comboBox3.SelectedItem.ToString();
-                this.databits_rru = comboBox4.SelectedItem.ToString();
-                this.stopbits_rru = comboBox5.SelectedItem.ToString();
+                localaddr.RRU = comboBox1.SelectedItem.ToString();
+                //this.port_rru = comboBox1.SelectedItem.ToString();
+                localaddr.Baudrate_rru = comboBox2.SelectedItem.ToString();
+                //this.baudrate_rru = comboBox2.SelectedItem.ToString();
+                //this.parity_rru = comboBox3.SelectedItem.ToString();
+                //this.databits_rru = comboBox4.SelectedItem.ToString();
+                //this.stopbits_rru = comboBox5.SelectedItem.ToString();
             }
 
             if (comboBox10.SelectedItem != null)
             {
-                //localaddr.SERIAL2 = comboBox10.SelectedText;
-                this.port_2 = comboBox10.SelectedItem.ToString();
-                //localaddr.Baudrate_com2 = comboBox9.SelectedText;
-                this.baudrate_2 = comboBox9.SelectedItem.ToString();
-                this.parity_2 = comboBox8.SelectedItem.ToString();
-                this.databits_2 = comboBox7.SelectedItem.ToString();
-                this.stopbits_2 = comboBox6.SelectedItem.ToString();
+                localaddr.SERIAL2 = comboBox10.SelectedItem.ToString();
+                //this.port_2 = comboBox10.SelectedItem.ToString();
+                localaddr.Baudrate_com2 = comboBox9.SelectedItem.ToString();
+                //this.baudrate_2 = comboBox9.SelectedItem.ToString();
+                //this.parity_2 = comboBox8.SelectedItem.ToString();
+                //this.databits_2 = comboBox7.SelectedItem.ToString();
+                //this.stopbits_2 = comboBox6.SelectedItem.ToString();
             }
             
             

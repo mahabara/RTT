@@ -1,6 +1,6 @@
 ﻿namespace RTT
 {
-    partial class InstrumentSetupForm
+    partial class VisaDeviceSetupForm
     {
         /// <summary>
         /// Required designer variable.
@@ -36,8 +36,8 @@
             this.label6 = new System.Windows.Forms.Label();
             this.label7 = new System.Windows.Forms.Label();
             this.groupBox1 = new System.Windows.Forms.GroupBox();
-            this.textBox8 = new System.Windows.Forms.TextBox();
-            this.label8 = new System.Windows.Forms.Label();
+            this.textBox9 = new System.Windows.Forms.TextBox();
+            this.label9 = new System.Windows.Forms.Label();
             this.textBox7 = new System.Windows.Forms.TextBox();
             this.textBox6 = new System.Windows.Forms.TextBox();
             this.textBox5 = new System.Windows.Forms.TextBox();
@@ -47,8 +47,10 @@
             this.textBox1 = new System.Windows.Forms.TextBox();
             this.button_ok = new System.Windows.Forms.Button();
             this.button_cancel = new System.Windows.Forms.Button();
-            this.textBox9 = new System.Windows.Forms.TextBox();
-            this.label9 = new System.Windows.Forms.Label();
+            this.label10 = new System.Windows.Forms.Label();
+            this.comboBox_capture1 = new System.Windows.Forms.ComboBox();
+            this.comboBox_capture2 = new System.Windows.Forms.ComboBox();
+            this.label8 = new System.Windows.Forms.Label();
             this.groupBox1.SuspendLayout();
             this.SuspendLayout();
             // 
@@ -117,10 +119,12 @@
             // 
             // groupBox1
             // 
+            this.groupBox1.Controls.Add(this.comboBox_capture2);
+            this.groupBox1.Controls.Add(this.comboBox_capture1);
+            this.groupBox1.Controls.Add(this.label10);
+            this.groupBox1.Controls.Add(this.label8);
             this.groupBox1.Controls.Add(this.textBox9);
             this.groupBox1.Controls.Add(this.label9);
-            this.groupBox1.Controls.Add(this.textBox8);
-            this.groupBox1.Controls.Add(this.label8);
             this.groupBox1.Controls.Add(this.textBox7);
             this.groupBox1.Controls.Add(this.textBox6);
             this.groupBox1.Controls.Add(this.textBox5);
@@ -137,26 +141,26 @@
             this.groupBox1.Controls.Add(this.label4);
             this.groupBox1.Location = new System.Drawing.Point(12, 13);
             this.groupBox1.Name = "groupBox1";
-            this.groupBox1.Size = new System.Drawing.Size(363, 283);
+            this.groupBox1.Size = new System.Drawing.Size(409, 319);
             this.groupBox1.TabIndex = 7;
             this.groupBox1.TabStop = false;
             this.groupBox1.Text = "Instrument";
             // 
-            // textBox8
+            // textBox9
             // 
-            this.textBox8.Location = new System.Drawing.Point(160, 221);
-            this.textBox8.Name = "textBox8";
-            this.textBox8.Size = new System.Drawing.Size(191, 20);
-            this.textBox8.TabIndex = 15;
+            this.textBox9.Location = new System.Drawing.Point(160, 221);
+            this.textBox9.Name = "textBox9";
+            this.textBox9.Size = new System.Drawing.Size(191, 20);
+            this.textBox9.TabIndex = 17;
             // 
-            // label8
+            // label9
             // 
-            this.label8.AutoSize = true;
-            this.label8.Location = new System.Drawing.Point(6, 224);
-            this.label8.Name = "label8";
-            this.label8.Size = new System.Drawing.Size(53, 13);
-            this.label8.TabIndex = 14;
-            this.label8.Text = "RuMaster";
+            this.label9.AutoSize = true;
+            this.label9.Location = new System.Drawing.Point(6, 224);
+            this.label9.Name = "label9";
+            this.label9.Size = new System.Drawing.Size(89, 13);
+            this.label9.TabIndex = 16;
+            this.label9.Text = "DC5767A(Power)";
             // 
             // textBox7
             // 
@@ -209,7 +213,7 @@
             // 
             // button_ok
             // 
-            this.button_ok.Location = new System.Drawing.Point(219, 302);
+            this.button_ok.Location = new System.Drawing.Point(267, 338);
             this.button_ok.Name = "button_ok";
             this.button_ok.Size = new System.Drawing.Size(75, 25);
             this.button_ok.TabIndex = 10;
@@ -219,7 +223,7 @@
             // 
             // button_cancel
             // 
-            this.button_cancel.Location = new System.Drawing.Point(300, 302);
+            this.button_cancel.Location = new System.Drawing.Point(346, 338);
             this.button_cancel.Name = "button_cancel";
             this.button_cancel.Size = new System.Drawing.Size(75, 25);
             this.button_cancel.TabIndex = 11;
@@ -227,36 +231,54 @@
             this.button_cancel.UseVisualStyleBackColor = true;
             this.button_cancel.Click += new System.EventHandler(this.button_cancel_Click);
             // 
-            // textBox9
+            // label10
             // 
-            this.textBox9.Location = new System.Drawing.Point(160, 250);
-            this.textBox9.Name = "textBox9";
-            this.textBox9.Size = new System.Drawing.Size(191, 20);
-            this.textBox9.TabIndex = 17;
+            this.label10.AutoSize = true;
+            this.label10.Location = new System.Drawing.Point(6, 281);
+            this.label10.Name = "label10";
+            this.label10.Size = new System.Drawing.Size(88, 13);
+            this.label10.TabIndex = 19;
+            this.label10.Text = "Capture2_device";
             // 
-            // label9
+            // comboBox_capture1
             // 
-            this.label9.AutoSize = true;
-            this.label9.Location = new System.Drawing.Point(6, 253);
-            this.label9.Name = "label9";
-            this.label9.Size = new System.Drawing.Size(53, 13);
-            this.label9.TabIndex = 16;
-            this.label9.Text = "DC5767A";
+            this.comboBox_capture1.FormattingEnabled = true;
+            this.comboBox_capture1.Location = new System.Drawing.Point(160, 248);
+            this.comboBox_capture1.Name = "comboBox_capture1";
+            this.comboBox_capture1.Size = new System.Drawing.Size(121, 21);
+            this.comboBox_capture1.TabIndex = 20;
             // 
-            // InstrumentSetupForm
+            // comboBox_capture2
+            // 
+            this.comboBox_capture2.FormattingEnabled = true;
+            this.comboBox_capture2.Location = new System.Drawing.Point(160, 278);
+            this.comboBox_capture2.Name = "comboBox_capture2";
+            this.comboBox_capture2.Size = new System.Drawing.Size(121, 21);
+            this.comboBox_capture2.TabIndex = 21;
+            // 
+            // label8
+            // 
+            this.label8.AutoSize = true;
+            this.label8.Location = new System.Drawing.Point(6, 251);
+            this.label8.Name = "label8";
+            this.label8.Size = new System.Drawing.Size(88, 13);
+            this.label8.TabIndex = 18;
+            this.label8.Text = "Capture1_device";
+            // 
+            // VisaDeviceSetupForm
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            this.ClientSize = new System.Drawing.Size(390, 340);
+            this.ClientSize = new System.Drawing.Size(433, 375);
             this.ControlBox = false;
             this.Controls.Add(this.button_cancel);
             this.Controls.Add(this.button_ok);
             this.Controls.Add(this.groupBox1);
             this.MaximizeBox = false;
             this.MinimizeBox = false;
-            this.Name = "InstrumentSetupForm";
+            this.Name = "VisaDeviceSetupForm";
             this.Tag = "";
-            this.Text = "InstrumentSetup";
+            this.Text = "Visa Device Setup";
             this.groupBox1.ResumeLayout(false);
             this.groupBox1.PerformLayout();
             this.ResumeLayout(false);
@@ -282,9 +304,11 @@
         private System.Windows.Forms.TextBox textBox1;
         private System.Windows.Forms.Button button_ok;
         private System.Windows.Forms.Button button_cancel;
-        private System.Windows.Forms.TextBox textBox8;
-        private System.Windows.Forms.Label label8;
         private System.Windows.Forms.TextBox textBox9;
         private System.Windows.Forms.Label label9;
+        private System.Windows.Forms.ComboBox comboBox_capture2;
+        private System.Windows.Forms.ComboBox comboBox_capture1;
+        private System.Windows.Forms.Label label10;
+        private System.Windows.Forms.Label label8;
     }
 }

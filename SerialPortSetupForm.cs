@@ -13,51 +13,26 @@ namespace RTT
 {
     public partial class SerialPortSetupForm : Form
     {
-        public string port_rru = "";
-        public string baudrate_rru = "";
-        public string parity_rru = "";
-        public string stopbits_rru = "";
-        public string databits_rru = "";
+        //public string port_rru = "";
+        //public string baudrate_rru = "";
+        //public string parity_rru = "";
+        //public string stopbits_rru = "";
+        //public string databits_rru = "";
 
-        public string port_2 = "";
-        public string baudrate_2 = "";
-        public string parity_2 = "";
-        public string stopbits_2 = "";
-        public string databits_2 = "";
+        //public string port_2 = "";
+        //public string baudrate_2 = "";
+        //public string parity_2 = "";
+        //public string stopbits_2 = "";
+        //public string databits_2 = "";
 
-        //private DataTable ZLDT = new DataTable();
-        public SerialPortSetupForm(Links link)
+        public Address localaddr = new Address();
+        public SerialPortSetupForm(Address addr)
         {
             InitializeComponent();
-            if(link!=null)
+            if (addr != null)
             {
-                if (link.port1_hasset)
-                {
-                    this.port_rru = link.port_rru;
-                    if (this.comboBox1.Items.Contains(this.port_rru))
-                        this.comboBox1.SelectedText = this.port_rru;
-                    this.baudrate_rru = link.baudrate_rru;
-                    this.parity_rru = link.parity_rru;
-                    this.databits_rru = link.databits_rru;
-                    this.stopbits_rru = link.stopbits_rru;
-                }
-
-                if (link.port2_hasset)
-                {
-                    this.port_2 = link.port_2;
-                    this.baudrate_2 = link.baudrate_2;
-                    this.parity_2 = link.parity_2;
-                    this.databits_2 = link.databits_2;
-                    this.stopbits_2 = link.stopbits_2;
-                }
+                this.localaddr = addr;
             }
-            
-            
-            
-            
-
-            
-            
 
         }
 
@@ -84,7 +59,7 @@ namespace RTT
 
             }
 
-            for(int i=0; i!= Constant.BAUD_RATES.Length; i++)
+            for (int i = 0; i != Constant.BAUD_RATES.Length; i++)
             {
                 this.comboBox2.Items.Add(Constant.BAUD_RATES[i]);
                 this.comboBox9.Items.Add(Constant.BAUD_RATES[i]);
@@ -107,62 +82,77 @@ namespace RTT
                 this.comboBox5.Items.Add(Constant.STOP_BITS[i]);
                 this.comboBox6.Items.Add(Constant.STOP_BITS[i]);
             }
-
-            if (this.port_rru!="")
-            {
-                this.comboBox1.SelectedText = this.port_rru;
-                this.comboBox2.SelectedText = this.baudrate_rru;
-                this.comboBox3.SelectedText = this.parity_rru;
-                this.comboBox4.SelectedText = this.databits_rru;
-                this.comboBox5.SelectedText = this.stopbits_rru;
-            }
+            //rru
+            if (this.comboBox1.Items.Contains(this.localaddr.RRU))
+                this.comboBox1.SelectedText = this.localaddr.RRU;
+            if (this.comboBox2.Items.Contains(this.localaddr.Baudrate_rru))
+                this.comboBox2.SelectedText = this.localaddr.Baudrate_rru;
             else
-            {
-
                 this.comboBox2.SelectedIndex = 1;
-                this.comboBox3.SelectedIndex = 0;
-                this.comboBox4.SelectedIndex = 4;
-                this.comboBox5.SelectedIndex = 0;
-            }
-            if (this.port_2 != "")
-            {
-                this.comboBox10.SelectedText = this.port_2;
-                this.comboBox9.SelectedText = this.baudrate_2;
-                this.comboBox8.SelectedText = this.parity_2;
-                this.comboBox7.SelectedText = this.databits_2;
-                this.comboBox6.SelectedText = this.stopbits_2;
-            }
+
+            this.comboBox3.SelectedIndex = 0;
+            this.comboBox4.SelectedIndex = 4;
+            this.comboBox5.SelectedIndex = 0;
+
+            //serial2
+            if (this.comboBox10.Items.Contains(this.localaddr.SERIAL2))
+                this.comboBox10.SelectedText = this.localaddr.SERIAL2;
+            if (this.comboBox9.Items.Contains(this.localaddr.Baudrate_com2))
+                this.comboBox9.SelectedText = this.localaddr.Baudrate_com2;
             else
-            {
-                
                 this.comboBox9.SelectedIndex = 1;
-                this.comboBox8.SelectedIndex = 0;
-                this.comboBox7.SelectedIndex = 4;
-                this.comboBox6.SelectedIndex = 0;
-            }
+            this.comboBox8.SelectedIndex = 0;
+            this.comboBox7.SelectedIndex = 4;
+            this.comboBox6.SelectedIndex = 0;
+
+            //======
+            
         }
 
         private void button_ok_Click(object sender, EventArgs e)
         {
-            if(comboBox1.SelectedItem!=null)
+            if(comboBox1.SelectedItem != null)
             {
-                this.port_rru = comboBox1.Text;
-                this.baudrate_rru = comboBox2.Text;
-                this.parity_rru = comboBox3.Text;
-                this.databits_rru = comboBox4.Text;
-                this.stopbits_rru = comboBox5.Text;
+                localaddr.RRU = comboBox1.SelectedItem.ToString();
+                
             }
-
+            else if(comboBox1.Text != null)
+            {
+                localaddr.RRU = comboBox1.Text;
+                
+            }
+            if (comboBox2.SelectedItem != null)
+            {
+                
+                localaddr.Baudrate_rru = comboBox2.SelectedItem.ToString();
+                
+            }
+            else if (comboBox2.Text != null)
+            {
+                
+                localaddr.Baudrate_rru = comboBox2.Text;
+            }
             if (comboBox10.SelectedItem != null)
             {
-                this.port_2 = comboBox10.Text;
-                this.baudrate_2 = comboBox9.Text;
-                this.parity_2 = comboBox8.Text;
-                this.databits_2 = comboBox7.Text;
-                this.stopbits_2 = comboBox6.Text;
-            }
+                localaddr.SERIAL2 = comboBox10.SelectedItem.ToString();
                 
+            }
+            else if(comboBox10.Text != null)
+            {
+                localaddr.SERIAL2 = comboBox10.Text;
+                
+            }
+            if (comboBox9.SelectedItem != null)
+            {
 
+                localaddr.Baudrate_com2 = comboBox9.SelectedItem.ToString();
+                
+            }
+            else if (comboBox9.Text != null)
+            {
+
+                localaddr.Baudrate_com2 = comboBox9.Text;
+            }
             this.DialogResult = DialogResult.OK;
             this.Close();
             
